@@ -3,6 +3,22 @@
   "config": {
     "step": {
       "user": {
+        "title": "Descubrimiento automático",
+        "description": "EverShelf no se encontró automáticamente en esta red (intentado: `{tried}`).",
+        "menu_options": {
+          "retry_discovery": "Reintentar descubrimiento automático",
+          "manual": "Introducir URL manualmente"
+        }
+      },
+      "retry_discovery": {
+        "title": "Todavía no encontrado",
+        "description": "EverShelf no se encontró en `{tried}`.",
+        "menu_options": {
+          "retry_discovery": "Reintentar descubrimiento automático",
+          "manual": "Introducir URL manualmente"
+        }
+      },
+      "manual": {
         "title": "Conectar a EverShelf",
         "description": "Introduce la URL de tu servidor EverShelf. Debe ser accesible desde Home Assistant.",
         "data": {

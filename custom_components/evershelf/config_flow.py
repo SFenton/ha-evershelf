@@ -123,9 +123,47 @@ class EverShelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
 
-    # ── Manual URL entry ───────────────────────────────────────────────
+    # ── Discovery helper ──────────────────────────────────────────────
+
+    async def _async_probe_or_menu(self, menu_step_id: str) -> FlowResult:
+        """Probe http://evershelf.local; confirm if found, show menu if not."""
+        probe_url = "http://evershelf.local"
+        ok, _, info = await _async_test_url(self.hass, probe_url)
+        if ok:
+            self._discovered_url = probe_url
+            self._info = info
+            unique_id = info.get("unique_id") or "evershelf_evershelf.local"
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured(updates={CONF_URL: probe_url})
+            self.context["title_placeholders"] = {
+                "name": info.get("instance", DEFAULT_NAME),
+                "host": "evershelf.local",
+            }
+            return await self.async_step_zeroconf_confirm()
+
+        return self.async_show_menu(
+            step_id=menu_step_id,
+            menu_options=["retry_discovery", "manual"],
+            description_placeholders={"tried": probe_url},
+        )
+
+    # ── User entry: auto-probe first ──────────────────────────────────
 
     async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Entry: probe evershelf.local automatically, show menu if not found."""
+        return await self._async_probe_or_menu("user")
+
+    async def async_step_retry_discovery(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Retry auto-discovery."""
+        return await self._async_probe_or_menu("retry_discovery")
+
+    # ── Manual URL entry ──────────────────────────────────────────────
+
+    async def async_step_manual(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle manual URL entry."""
@@ -152,7 +190,7 @@ class EverShelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     return await self.async_step_auth()
 
         return self.async_show_form(
-            step_id="user",
+            step_id="manual",
             data_schema=vol.Schema(
                 {vol.Required(CONF_URL, default="http://evershelf.local"): str}
             ),

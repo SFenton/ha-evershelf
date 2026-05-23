@@ -3,6 +3,22 @@
   "config": {
     "step": {
       "user": {
+        "title": "Auto-discovery",
+        "description": "EverShelf was not found automatically on this network (tried `{tried}`).",
+        "menu_options": {
+          "retry_discovery": "Try auto-discovery again",
+          "manual": "Enter URL manually"
+        }
+      },
+      "retry_discovery": {
+        "title": "Still not found",
+        "description": "EverShelf was not found at `{tried}`.",
+        "menu_options": {
+          "retry_discovery": "Try auto-discovery again",
+          "manual": "Enter URL manually"
+        }
+      },
+      "manual": {
         "title": "Connect to EverShelf",
         "description": "Enter the URL of your EverShelf server. It must be reachable from your Home Assistant host.",
         "data": {
