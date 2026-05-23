@@ -74,6 +74,9 @@
       "expiring_soon": {
         "name": "In scadenza"
       },
+      "expiring_today": {
+        "name": "Scadono oggi"
+      },
       "expiring_3d": {
         "name": "Scadono in 3 giorni"
       },
@@ -99,6 +102,9 @@
       },
       "has_expiring_items": {
         "name": "Ci sono prodotti in scadenza"
+      },
+      "has_expiring_today": {
+        "name": "Scadono oggi (Urgente)"
       },
       "has_shopping_items": {
         "name": "Lista della spesa attiva"

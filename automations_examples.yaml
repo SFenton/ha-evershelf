@@ -1,0 +1,122 @@
+# EverShelf — Home Assistant Automation Examples
+# Copy any of these into your automations.yaml or import via the HA UI.
+# Replace "notify.mobile_app_YOUR_PHONE" with your actual notify service.
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 1. URGENT: Notify when something expires today or tomorrow
+# ──────────────────────────────────────────────────────────────────────────────
+- alias: "EverShelf — Expiring Today Alert"
+  description: "Red alert when an item expires today or tomorrow."
+  trigger:
+    - platform: state
+      entity_id: binary_sensor.evershelf_has_expiring_today
+      to: "on"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: "EverShelf — Expiring Today!"
+        message: >
+          {{ states('sensor.evershelf_expiring_today') }} item(s) expire today or
+          tomorrow. Next: {{ state_attr('sensor.evershelf_expiring_today',
+          'next_expiry_name') }} ({{ state_attr('sensor.evershelf_expiring_today',
+          'next_expiry_date') }}).
+        data:
+          tag: evershelf_expiring_today
+          importance: high
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 2. DAILY BRIEFING: Morning summary at 8:00
+# ──────────────────────────────────────────────────────────────────────────────
+- alias: "EverShelf — Morning Briefing"
+  description: "Daily 8am pantry summary — only if something needs attention."
+  trigger:
+    - platform: time
+      at: "08:00:00"
+  condition:
+    - condition: or
+      conditions:
+        - condition: numeric_state
+          entity_id: sensor.evershelf_expiring_soon
+          above: 0
+        - condition: state
+          entity_id: binary_sensor.evershelf_has_expired_items
+          state: "on"
+        - condition: numeric_state
+          entity_id: sensor.evershelf_shopping_items
+          above: 5
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: "EverShelf Morning Report"
+        message: >
+          {% if is_state('binary_sensor.evershelf_has_expired_items', 'on') %}
+          Expired: {{ states('sensor.evershelf_expired_items') }} items.
+          {% endif %}
+          {% if states('sensor.evershelf_expiring_3d') | int > 0 %}
+          Expiring in 3 days: {{ states('sensor.evershelf_expiring_3d') }} items.
+          {% endif %}
+          Shopping list: {{ states('sensor.evershelf_shopping_items') }} items
+          {% if states('sensor.evershelf_shopping_total') not in ['unknown', 'unavailable'] %}
+          (~{{ states('sensor.evershelf_shopping_total') }} EUR)
+          {% endif %}.
+        data:
+          tag: evershelf_briefing
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 3. SHOPPING REMINDER: Notify when shopping list grows
+# ──────────────────────────────────────────────────────────────────────────────
+- alias: "EverShelf — Shopping List Reminder"
+  description: "Remind when shopping list exceeds 10 items."
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.evershelf_shopping_items
+      above: 10
+  condition:
+    - condition: time
+      after: "09:00:00"
+      before: "20:00:00"
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: "EverShelf — Shopping List"
+        message: >
+          You have {{ states('sensor.evershelf_shopping_items') }} items to buy
+          {% if states('sensor.evershelf_shopping_total') not in ['unknown', 'unavailable'] %}
+          (~{{ states('sensor.evershelf_shopping_total') }} EUR estimated)
+          {% endif %}.
+        data:
+          tag: evershelf_shopping
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 4. BUDGET ALERT: Shopping total exceeds threshold
+# ──────────────────────────────────────────────────────────────────────────────
+- alias: "EverShelf — Shopping Budget Alert"
+  description: "Alert when estimated shopping total exceeds €50."
+  trigger:
+    - platform: numeric_state
+      entity_id: sensor.evershelf_shopping_total
+      above: 50
+  action:
+    - service: notify.mobile_app_YOUR_PHONE
+      data:
+        title: "EverShelf — Budget Alert"
+        message: >
+          Shopping total is now {{ states('sensor.evershelf_shopping_total') }} EUR
+          for {{ states('sensor.evershelf_shopping_items') }} items.
+        data:
+          tag: evershelf_budget
+
+# ──────────────────────────────────────────────────────────────────────────────
+# 5. DASHBOARD CARD (Lovelace YAML — paste into a Manual card)
+# ──────────────────────────────────────────────────────────────────────────────
+# type: entities
+# title: EverShelf Pantry
+# entities:
+#   - entity: sensor.evershelf_total_items
+#   - entity: sensor.evershelf_opened_items
+#   - entity: sensor.evershelf_expiring_today
+#   - entity: sensor.evershelf_expiring_3d
+#   - entity: sensor.evershelf_expired_items
+#   - entity: sensor.evershelf_shopping_items
+#   - entity: sensor.evershelf_shopping_total
+#   - entity: binary_sensor.evershelf_price_tracking

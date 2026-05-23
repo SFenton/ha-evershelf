@@ -74,6 +74,9 @@
       "expiring_soon": {
         "name": "Expirant bientot"
       },
+      "expiring_today": {
+        "name": "Expirent aujourd'hui"
+      },
       "expiring_3d": {
         "name": "Expirant dans 3 jours"
       },
@@ -99,6 +102,9 @@
       },
       "has_expiring_items": {
         "name": "Produits expirant bientot"
+      },
+      "has_expiring_today": {
+        "name": "Expirent aujourd'hui (Urgent)"
       },
       "has_shopping_items": {
         "name": "Liste de courses active"

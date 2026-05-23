@@ -74,6 +74,9 @@
       "expiring_soon": {
         "name": "Bald ablaufend"
       },
+      "expiring_today": {
+        "name": "Laufen heute ab"
+      },
       "expiring_3d": {
         "name": "Ablauf in 3 Tagen"
       },
@@ -99,6 +102,9 @@
       },
       "has_expiring_items": {
         "name": "Bald ablaufende Produkte vorhanden"
+      },
+      "has_expiring_today": {
+        "name": "Laufen heute ab (Dringend)"
       },
       "has_shopping_items": {
         "name": "Einkaufsliste aktiv"

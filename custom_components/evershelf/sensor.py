@@ -38,7 +38,16 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         native_unit_of_measurement="items",
         state_class=SensorStateClass.MEASUREMENT,
         data_key="expiring_soon",
-        extra_attr_keys=("expiring_list", "last_updated"),
+        extra_attr_keys=("expiring_list", "next_expiry_name", "next_expiry_date", "last_updated"),
+    ),
+    EverShelfSensorDescription(
+        key="expiring_today",
+        translation_key="expiring_today",
+        icon="mdi:food-alert",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="expiring_today",
+        extra_attr_keys=("next_expiry_name", "next_expiry_date"),
     ),
     EverShelfSensorDescription(
         key="expiring_3d",

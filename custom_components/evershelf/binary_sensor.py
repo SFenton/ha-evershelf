@@ -39,6 +39,13 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[EverShelfBinarySensorDescription, ...] = (
         data_key="expiring_soon",
     ),
     EverShelfBinarySensorDescription(
+        key="has_expiring_today",
+        translation_key="has_expiring_today",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:food-alert",
+        data_key="expiring_today",
+    ),
+    EverShelfBinarySensorDescription(
         key="has_shopping_items",
         translation_key="has_shopping_items",
         device_class=BinarySensorDeviceClass.OCCUPANCY,

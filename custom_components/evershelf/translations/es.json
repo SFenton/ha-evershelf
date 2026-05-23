@@ -74,6 +74,9 @@
       "expiring_soon": {
         "name": "Proximos a vencer"
       },
+      "expiring_today": {
+        "name": "Vencen hoy"
+      },
       "expiring_3d": {
         "name": "Vencen en 3 dias"
       },
@@ -99,6 +102,9 @@
       },
       "has_expiring_items": {
         "name": "Hay productos por vencer"
+      },
+      "has_expiring_today": {
+        "name": "Vencen hoy (Urgente)"
       },
       "has_shopping_items": {
         "name": "Lista de la compra activa"

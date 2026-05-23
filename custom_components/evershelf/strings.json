@@ -74,6 +74,9 @@
       "expiring_soon": {
         "name": "Expiring Soon"
       },
+      "expiring_today": {
+        "name": "Expiring Today"
+      },
       "expiring_3d": {
         "name": "Expiring in 3 Days"
       },
@@ -99,6 +102,9 @@
       },
       "has_expiring_items": {
         "name": "Has Expiring Items"
+      },
+      "has_expiring_today": {
+        "name": "Expiring Today (Urgent)"
       },
       "has_shopping_items": {
         "name": "Shopping List Active"
