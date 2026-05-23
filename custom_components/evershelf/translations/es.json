@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Descubrimiento automático",
-        "description": "EverShelf no se encontró automáticamente en esta red (intentado: `{tried}`).",
+        "description": "EverShelf no se encontró en `{tried}`.\n\nEl descubrimiento automático requiere **avahi-daemon** (mDNS) instalado y en ejecución en el servidor EverShelf. Si no está disponible, introduce la URL manualmente.",
         "menu_options": {
           "retry_discovery": "Reintentar descubrimiento automático",
           "manual": "Introducir URL manualmente"
@@ -12,7 +12,7 @@
       },
       "retry_discovery": {
         "title": "Todavía no encontrado",
-        "description": "EverShelf no se encontró en `{tried}`.",
+        "description": "EverShelf sigue sin ser accesible en `{tried}`.\n\nAsegúrate de que **avahi-daemon** esté activo en el servidor EverShelf, o introduce la URL manualmente.",
         "menu_options": {
           "retry_discovery": "Reintentar descubrimiento automático",
           "manual": "Introducir URL manualmente"
