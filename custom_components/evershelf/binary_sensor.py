@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -12,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import EverShelfCoordinator
@@ -58,6 +60,20 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[EverShelfBinarySensorDescription, ...] = (
         icon="mdi:tag-text-outline",
         data_key="price_tracking_enabled",
     ),
+    EverShelfBinarySensorDescription(
+        key="backup_overdue",
+        translation_key="backup_overdue",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:backup-restore",
+        data_key="last_backup_at",
+    ),
+    EverShelfBinarySensorDescription(
+        key="bring_connected",
+        translation_key="bring_connected",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        icon="mdi:cart-check",
+        data_key="bring_connected",
+    ),
 )
 
 
@@ -87,4 +103,16 @@ class EverShelfBinarySensor(CoordinatorEntity[EverShelfCoordinator], BinarySenso
 
     @property
     def is_on(self) -> bool:
-        return bool(self.coordinator.data.get(self.entity_description.data_key, 0))
+        raw = self.coordinator.data.get(self.entity_description.data_key)
+        # backup_overdue: ON if last_backup_at is older than 7 days or missing
+        if self.entity_description.key == "backup_overdue":
+            if not raw:
+                return True
+            try:
+                ts = dt_util.parse_datetime(raw)
+                if ts is None:
+                    return True
+                return (dt_util.utcnow() - ts) > timedelta(days=7)
+            except Exception:
+                return True
+        return bool(raw)

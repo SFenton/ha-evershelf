@@ -59,3 +59,24 @@ mark_used:
 refresh:
   name: Refresh Data
   description: Force an immediate refresh of all EverShelf sensor data.
+
+suggest_recipe:
+  name: Suggest Recipe
+  description: Ask EverShelf AI to suggest a recipe using items expiring soonest.
+  fields:
+    location:
+      name: Location
+      description: Pantry location to focus on (e.g. frigo, freezer). Leave empty for all locations.
+      required: false
+      example: "frigo"
+      selector:
+        text:
+
+refresh_prices:
+  name: Refresh Prices
+  description: Recompute the shopping list estimated total from the existing price cache (no AI calls).
+
+clear_expired:
+  name: Clear Expired
+  description: Remove expired inventory rows with zero stock from EverShelf.
+

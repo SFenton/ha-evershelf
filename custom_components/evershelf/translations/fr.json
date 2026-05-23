@@ -94,6 +94,30 @@
       },
       "shopping_total": {
         "name": "Total courses estime"
+      },
+      "items_dispensa": {
+        "name": "Articles dans le garde-manger"
+      },
+      "items_frigo": {
+        "name": "Articles dans le frigo"
+      },
+      "items_freezer": {
+        "name": "Articles dans le congélateur"
+      },
+      "low_stock_items": {
+        "name": "Articles en rupture"
+      },
+      "zero_stock_items": {
+        "name": "Articles épuisés"
+      },
+      "ai_calls_month": {
+        "name": "Appels IA ce mois"
+      },
+      "last_backup": {
+        "name": "Dernière sauvegarde"
+      },
+      "days_to_next_expiry": {
+        "name": "Jours avant la prochaine expiration"
       }
     },
     "binary_sensor": {
@@ -111,16 +135,44 @@
       },
       "price_tracking_enabled": {
         "name": "Suivi des prix actif"
+      },
+      "backup_overdue": {
+        "name": "Sauvegarde en retard"
+      },
+      "bring_connected": {
+        "name": "Bring! Connecté"
       }
     },
     "button": {
       "refresh": {
         "name": "Actualiser"
+      },
+      "refresh_prices": {
+        "name": "Actualiser les prix"
+      },
+      "suggest_recipe": {
+        "name": "Suggérer une recette"
+      },
+      "sync_smart_shopping": {
+        "name": "Synchroniser la liste intelligente"
+      },
+      "clear_expired": {
+        "name": "Effacer les expirés"
       }
     },
     "todo": {
       "shopping_list": {
         "name": "Liste de courses"
+      }
+    },
+    "calendar": {
+      "expiry_calendar": {
+        "name": "Calendrier des expirations"
+      }
+    },
+    "text": {
+      "quick_add": {
+        "name": "Ajout rapide à la liste"
       }
     }
   },
@@ -164,6 +216,24 @@
     "refresh": {
       "name": "Actualiser les données",
       "description": "Force une actualisation immédiate de tous les données EverShelf."
+    },
+    "suggest_recipe": {
+      "name": "Suggérer une recette",
+      "description": "Demandez à l'IA EverShelf de suggérer une recette avec les produits bientôt périmés.",
+      "fields": {
+        "location": {
+          "name": "Emplacement",
+          "description": "Emplacement du garde-manger (ex. frigo, freezer). Vide pour tous."
+        }
+      }
+    },
+    "refresh_prices": {
+      "name": "Actualiser les prix",
+      "description": "Recalculer le total estimé de la liste de courses depuis le cache des prix."
+    },
+    "clear_expired": {
+      "name": "Effacer les expirés",
+      "description": "Supprimer les lignes d'inventaire expirées avec quantité nulle."
     }
   }
 }

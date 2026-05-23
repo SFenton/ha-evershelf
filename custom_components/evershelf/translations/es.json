@@ -94,6 +94,30 @@
       },
       "shopping_total": {
         "name": "Total compra estimado"
+      },
+      "items_dispensa": {
+        "name": "Artículos en la despensa"
+      },
+      "items_frigo": {
+        "name": "Artículos en el frigorífico"
+      },
+      "items_freezer": {
+        "name": "Artículos en el congelador"
+      },
+      "low_stock_items": {
+        "name": "Artículos con poco stock"
+      },
+      "zero_stock_items": {
+        "name": "Artículos agotados"
+      },
+      "ai_calls_month": {
+        "name": "Llamadas IA este mes"
+      },
+      "last_backup": {
+        "name": "Última copia de seguridad"
+      },
+      "days_to_next_expiry": {
+        "name": "Días para la próxima caducidad"
       }
     },
     "binary_sensor": {
@@ -111,16 +135,44 @@
       },
       "price_tracking_enabled": {
         "name": "Seguimiento de precios activo"
+      },
+      "backup_overdue": {
+        "name": "Copia de seguridad vencida"
+      },
+      "bring_connected": {
+        "name": "Bring! Conectado"
       }
     },
     "button": {
       "refresh": {
         "name": "Actualizar"
+      },
+      "refresh_prices": {
+        "name": "Actualizar precios"
+      },
+      "suggest_recipe": {
+        "name": "Sugerir receta"
+      },
+      "sync_smart_shopping": {
+        "name": "Sincronizar lista inteligente"
+      },
+      "clear_expired": {
+        "name": "Limpiar caducados"
       }
     },
     "todo": {
       "shopping_list": {
         "name": "Lista de la compra"
+      }
+    },
+    "calendar": {
+      "expiry_calendar": {
+        "name": "Calendario de caducidades"
+      }
+    },
+    "text": {
+      "quick_add": {
+        "name": "Añadir rápido a la lista"
       }
     }
   },
@@ -164,6 +216,24 @@
     "refresh": {
       "name": "Actualizar datos",
       "description": "Fuerza una actualización inmediata de todos los datos de EverShelf."
+    },
+    "suggest_recipe": {
+      "name": "Sugerir receta",
+      "description": "Pide a la IA de EverShelf que sugiera una receta con los productos próximos a caducar.",
+      "fields": {
+        "location": {
+          "name": "Ubicación",
+          "description": "Ubicación de la despensa (p. ej. frigo, freezer). Vacío para todas."
+        }
+      }
+    },
+    "refresh_prices": {
+      "name": "Actualizar precios",
+      "description": "Recalcular el total estimado de la lista de la compra desde la caché de precios."
+    },
+    "clear_expired": {
+      "name": "Limpiar caducados",
+      "description": "Eliminar filas de inventario caducadas con cantidad cero."
     }
   }
 }

@@ -22,4 +22,4 @@ MIN_EXPIRY_DAYS = 1
 MAX_EXPIRY_DAYS = 30
 
 # Platforms
-PLATFORMS = ["sensor", "binary_sensor", "button", "todo"]
+PLATFORMS = ["sensor", "binary_sensor", "button", "todo", "calendar", "text"]

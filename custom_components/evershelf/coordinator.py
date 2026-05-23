@@ -235,3 +235,53 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         except aiohttp.ClientError as err:
             _LOGGER.error("EverShelf %s error: %s", action, err)
             return False
+
+    async def _get_json(self, action: str, params: dict | None = None, timeout: int = 15) -> dict[str, Any] | None:
+        """GET request returning parsed JSON or None on error."""
+        try:
+            p = {"action": action, **(params or {})}
+            async with self._session().get(
+                f"{self.url}/api/index.php",
+                params=p,
+                headers=self._headers(),
+                timeout=aiohttp.ClientTimeout(total=timeout),
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json(content_type=None)
+                _LOGGER.warning("EverShelf %s returned HTTP %s", action, resp.status)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("EverShelf %s error: %s", action, err)
+        return None
+
+    # ------------------------------------------------------------------
+    # Action methods (called by button/service entities)
+    # ------------------------------------------------------------------
+
+    async def async_refresh_prices(self) -> dict[str, Any] | None:
+        """Compute shopping total from existing price cache (no AI calls)."""
+        return await self._get_json("ha_refresh_prices")
+
+    async def async_suggest_recipe(self, location: str = "") -> str | None:
+        """Ask EverShelf AI for a recipe using items expiring soonest."""
+        params = {}
+        if location:
+            params["location"] = location
+        data = await self._get_json("ha_suggest_recipe", params, timeout=35)
+        if data:
+            return data.get("recipe")
+        return None
+
+    async def async_sync_smart_shopping(self) -> bool:
+        """Trigger smart shopping AI sync."""
+        return await self._post("smart_shopping", {})
+
+    async def async_clear_expired(self) -> dict[str, Any] | None:
+        """Remove expired zero-stock inventory rows."""
+        return await self._get_json("ha_clear_expired")
+
+    async def async_get_calendar_events(self) -> list[dict[str, Any]]:
+        """Fetch all expiry events from EverShelf for the calendar entity."""
+        data = await self._get_json("ha_calendar")
+        if data:
+            return data.get("events", [])
+        return []

@@ -94,6 +94,30 @@
       },
       "shopping_total": {
         "name": "Shopping Total"
+      },
+      "items_dispensa": {
+        "name": "Items in Pantry"
+      },
+      "items_frigo": {
+        "name": "Items in Fridge"
+      },
+      "items_freezer": {
+        "name": "Items in Freezer"
+      },
+      "low_stock_items": {
+        "name": "Low Stock Items"
+      },
+      "zero_stock_items": {
+        "name": "Out of Stock Items"
+      },
+      "ai_calls_month": {
+        "name": "AI Calls This Month"
+      },
+      "last_backup": {
+        "name": "Last Backup"
+      },
+      "days_to_next_expiry": {
+        "name": "Days to Next Expiry"
       }
     },
     "binary_sensor": {
@@ -111,11 +135,39 @@
       },
       "price_tracking_enabled": {
         "name": "Price Tracking"
+      },
+      "backup_overdue": {
+        "name": "Backup Overdue"
+      },
+      "bring_connected": {
+        "name": "Bring! Connected"
       }
     },
     "button": {
       "refresh": {
         "name": "Refresh"
+      },
+      "refresh_prices": {
+        "name": "Refresh Prices"
+      },
+      "suggest_recipe": {
+        "name": "Suggest Recipe"
+      },
+      "sync_smart_shopping": {
+        "name": "Sync Smart Shopping"
+      },
+      "clear_expired": {
+        "name": "Clear Expired"
+      }
+    },
+    "calendar": {
+      "expiry_calendar": {
+        "name": "Expiry Calendar"
+      }
+    },
+    "text": {
+      "quick_add": {
+        "name": "Quick Add to Shopping"
       }
     },
     "todo": {
@@ -164,6 +216,24 @@
     "refresh": {
       "name": "Refresh Data",
       "description": "Force an immediate refresh of all EverShelf sensor data."
+    },
+    "suggest_recipe": {
+      "name": "Suggest Recipe",
+      "description": "Ask EverShelf AI to suggest a recipe based on items expiring soonest.",
+      "fields": {
+        "location": {
+          "name": "Location",
+          "description": "Optional pantry location to focus on (e.g. frigo, freezer). Leave empty for all."
+        }
+      }
+    },
+    "refresh_prices": {
+      "name": "Refresh Prices",
+      "description": "Recompute shopping list estimated total from existing price cache."
+    },
+    "clear_expired": {
+      "name": "Clear Expired",
+      "description": "Remove expired zero-stock inventory rows from EverShelf."
     }
   }
 }

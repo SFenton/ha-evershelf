@@ -1,6 +1,10 @@
 """Button platform for EverShelf."""
 from __future__ import annotations
 
+import logging
+from dataclasses import dataclass
+from typing import Awaitable, Callable
+
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -11,12 +15,44 @@ from .const import DOMAIN
 from .coordinator import EverShelfCoordinator
 from .sensor import evershelf_device_info
 
+_LOGGER = logging.getLogger(__name__)
 
-BUTTON_DESCRIPTIONS: tuple[ButtonEntityDescription, ...] = (
-    ButtonEntityDescription(
+
+@dataclass(frozen=True, kw_only=True)
+class EverShelfButtonDescription(ButtonEntityDescription):
+    action: str = "refresh"
+
+
+BUTTON_DESCRIPTIONS: tuple[EverShelfButtonDescription, ...] = (
+    EverShelfButtonDescription(
         key="refresh",
         translation_key="refresh",
         icon="mdi:refresh",
+        action="refresh",
+    ),
+    EverShelfButtonDescription(
+        key="refresh_prices",
+        translation_key="refresh_prices",
+        icon="mdi:currency-eur",
+        action="ha_refresh_prices",
+    ),
+    EverShelfButtonDescription(
+        key="suggest_recipe",
+        translation_key="suggest_recipe",
+        icon="mdi:chef-hat",
+        action="ha_suggest_recipe",
+    ),
+    EverShelfButtonDescription(
+        key="sync_smart_shopping",
+        translation_key="sync_smart_shopping",
+        icon="mdi:cart-arrow-down",
+        action="ha_sync_smart_shopping",
+    ),
+    EverShelfButtonDescription(
+        key="clear_expired",
+        translation_key="clear_expired",
+        icon="mdi:delete-sweep",
+        action="ha_clear_expired",
     ),
 )
 
@@ -33,9 +69,9 @@ async def async_setup_entry(
 
 
 class EverShelfButton(CoordinatorEntity[EverShelfCoordinator], ButtonEntity):
-    """Force a data refresh from EverShelf."""
+    """An EverShelf action button."""
 
-    entity_description: ButtonEntityDescription
+    entity_description: EverShelfButtonDescription
     _attr_has_entity_name = True
 
     def __init__(self, coordinator, entry, description):
@@ -45,4 +81,24 @@ class EverShelfButton(CoordinatorEntity[EverShelfCoordinator], ButtonEntity):
         self._attr_device_info = evershelf_device_info(coordinator, entry)
 
     async def async_press(self) -> None:
-        await self.coordinator.async_request_refresh()
+        action = self.entity_description.action
+        if action == "refresh":
+            await self.coordinator.async_request_refresh()
+        elif action == "ha_refresh_prices":
+            result = await self.coordinator.async_refresh_prices()
+            if result:
+                _LOGGER.info("EverShelf prices refreshed: %s", result.get("total_label"))
+            await self.coordinator.async_request_refresh()
+        elif action == "ha_suggest_recipe":
+            recipe = await self.coordinator.async_suggest_recipe()
+            if recipe:
+                _LOGGER.info("EverShelf recipe suggestion: %s", recipe[:80])
+            await self.coordinator.async_request_refresh()
+        elif action == "ha_sync_smart_shopping":
+            await self.coordinator.async_sync_smart_shopping()
+            await self.coordinator.async_request_refresh()
+        elif action == "ha_clear_expired":
+            result = await self.coordinator.async_clear_expired()
+            if result:
+                _LOGGER.info("EverShelf cleared %s expired rows", result.get("deleted"))
+            await self.coordinator.async_request_refresh()

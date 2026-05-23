@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -15,6 +16,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import EverShelfCoordinator
@@ -98,6 +100,72 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         data_key="shopping_total",
         requires_price=True,
     ),
+    # ── Location breakdown ────────────────────────────────────────────────────
+    EverShelfSensorDescription(
+        key="items_dispensa",
+        translation_key="items_dispensa",
+        icon="mdi:package-variant-closed",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="items_dispensa",
+    ),
+    EverShelfSensorDescription(
+        key="items_frigo",
+        translation_key="items_frigo",
+        icon="mdi:fridge",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="items_frigo",
+    ),
+    EverShelfSensorDescription(
+        key="items_freezer",
+        translation_key="items_freezer",
+        icon="mdi:snowflake",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="items_freezer",
+    ),
+    # ── Stock ─────────────────────────────────────────────────────────────────
+    EverShelfSensorDescription(
+        key="low_stock_items",
+        translation_key="low_stock_items",
+        icon="mdi:package-variant",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="low_stock_items",
+    ),
+    EverShelfSensorDescription(
+        key="zero_stock_items",
+        translation_key="zero_stock_items",
+        icon="mdi:package-variant-remove",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="zero_stock_items",
+    ),
+    # ── System ────────────────────────────────────────────────────────────────
+    EverShelfSensorDescription(
+        key="ai_calls_month",
+        translation_key="ai_calls_month",
+        icon="mdi:robot",
+        native_unit_of_measurement="calls",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        data_key="ai_calls_month",
+    ),
+    EverShelfSensorDescription(
+        key="last_backup",
+        translation_key="last_backup",
+        icon="mdi:backup-restore",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        data_key="last_backup_at",
+    ),
+    EverShelfSensorDescription(
+        key="days_to_next_expiry",
+        translation_key="days_to_next_expiry",
+        icon="mdi:calendar-clock",
+        native_unit_of_measurement="d",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="days_to_next_expiry",
+    ),
 )
 
 
@@ -159,8 +227,14 @@ class EverShelfSensor(CoordinatorEntity[EverShelfCoordinator], SensorEntity):
         return True
 
     @property
-    def native_value(self) -> int | float | None:
-        return self.coordinator.data.get(self.entity_description.data_key)
+    def native_value(self) -> int | float | datetime | None:
+        val = self.coordinator.data.get(self.entity_description.data_key)
+        if self.entity_description.device_class == SensorDeviceClass.TIMESTAMP and isinstance(val, str):
+            try:
+                return dt_util.parse_datetime(val)
+            except Exception:
+                return None
+        return val
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

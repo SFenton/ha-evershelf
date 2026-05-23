@@ -94,6 +94,30 @@
       },
       "shopping_total": {
         "name": "Geschatzter Einkaufsbetrag"
+      },
+      "items_dispensa": {
+        "name": "Artikel in der Speisekammer"
+      },
+      "items_frigo": {
+        "name": "Artikel im Kühlschrank"
+      },
+      "items_freezer": {
+        "name": "Artikel im Tiefkühlschrank"
+      },
+      "low_stock_items": {
+        "name": "Artikel mit niedrigem Bestand"
+      },
+      "zero_stock_items": {
+        "name": "Nicht vorrätige Artikel"
+      },
+      "ai_calls_month": {
+        "name": "KI-Aufrufe diesen Monat"
+      },
+      "last_backup": {
+        "name": "Letztes Backup"
+      },
+      "days_to_next_expiry": {
+        "name": "Tage bis zum nächsten Ablaufdatum"
       }
     },
     "binary_sensor": {
@@ -111,16 +135,44 @@
       },
       "price_tracking_enabled": {
         "name": "Preisverfolgung aktiv"
+      },
+      "backup_overdue": {
+        "name": "Backup überfällig"
+      },
+      "bring_connected": {
+        "name": "Bring! Verbunden"
       }
     },
     "button": {
       "refresh": {
         "name": "Aktualisieren"
+      },
+      "refresh_prices": {
+        "name": "Preise aktualisieren"
+      },
+      "suggest_recipe": {
+        "name": "Rezept vorschlagen"
+      },
+      "sync_smart_shopping": {
+        "name": "Smarte Einkaufsliste synchronisieren"
+      },
+      "clear_expired": {
+        "name": "Abgelaufene löschen"
       }
     },
     "todo": {
       "shopping_list": {
         "name": "Einkaufsliste"
+      }
+    },
+    "calendar": {
+      "expiry_calendar": {
+        "name": "Ablaufkalender"
+      }
+    },
+    "text": {
+      "quick_add": {
+        "name": "Schnell zur Einkaufsliste hinzufügen"
       }
     }
   },
@@ -164,6 +216,24 @@
     "refresh": {
       "name": "Daten aktualisieren",
       "description": "Erzwingt eine sofortige Aktualisierung aller EverShelf-Sensordaten."
+    },
+    "suggest_recipe": {
+      "name": "Rezept vorschlagen",
+      "description": "Bitte die EverShelf-KI, ein Rezept mit bald ablaufenden Produkten vorzuschlagen.",
+      "fields": {
+        "location": {
+          "name": "Standort",
+          "description": "Vorratsort (z. B. frigo, freezer). Leer für alle."
+        }
+      }
+    },
+    "refresh_prices": {
+      "name": "Preise aktualisieren",
+      "description": "Gesamtschätzung der Einkaufsliste aus dem Preis-Cache neu berechnen."
+    },
+    "clear_expired": {
+      "name": "Abgelaufene löschen",
+      "description": "Abgelaufene Inventareinträge mit Nullbestand entfernen."
     }
   }
 }

@@ -28,6 +28,8 @@ PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
     Platform.BUTTON,
     Platform.TODO,
+    Platform.CALENDAR,
+    Platform.TEXT,
 ]
 
 _ADD_TO_SHOPPING_SCHEMA = vol.Schema(
@@ -93,6 +95,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             coord = _get_coordinator(hass, call)
             await coord.async_request_refresh()
 
+        async def _handle_suggest_recipe(call: ServiceCall) -> None:
+            coord = _get_coordinator(hass, call)
+            location = call.data.get("location", "")
+            recipe = await coord.async_suggest_recipe(location=location)
+            if recipe:
+                await hass.services.async_call(
+                    "persistent_notification",
+                    "create",
+                    {
+                        "title": "EverShelf Recipe Suggestion",
+                        "message": recipe,
+                        "notification_id": "evershelf_recipe",
+                    },
+                )
+            await coord.async_request_refresh()
+
+        async def _handle_refresh_prices(call: ServiceCall) -> None:
+            coord = _get_coordinator(hass, call)
+            await coord.async_refresh_prices()
+            await coord.async_request_refresh()
+
+        async def _handle_clear_expired(call: ServiceCall) -> None:
+            coord = _get_coordinator(hass, call)
+            await coord.async_clear_expired()
+            await coord.async_request_refresh()
+
         hass.services.async_register(
             DOMAIN, "add_to_shopping", _handle_add_to_shopping, schema=_ADD_TO_SHOPPING_SCHEMA
         )
@@ -100,6 +128,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN, "mark_used", _handle_mark_used, schema=_MARK_USED_SCHEMA
         )
         hass.services.async_register(DOMAIN, "refresh", _handle_refresh)
+        hass.services.async_register(DOMAIN, "suggest_recipe", _handle_suggest_recipe)
+        hass.services.async_register(DOMAIN, "refresh_prices", _handle_refresh_prices)
+        hass.services.async_register(DOMAIN, "clear_expired", _handle_clear_expired)
 
     return True
 
@@ -111,7 +142,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id, None)
 
     if not hass.data.get(DOMAIN):
-        for svc in ("add_to_shopping", "mark_used", "refresh"):
+        for svc in ("add_to_shopping", "mark_used", "refresh", "suggest_recipe", "refresh_prices", "clear_expired"):
             hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok

@@ -94,6 +94,30 @@
       },
       "shopping_total": {
         "name": "Totale spesa stimato"
+      },
+      "items_dispensa": {
+        "name": "Articoli in Dispensa"
+      },
+      "items_frigo": {
+        "name": "Articoli in Frigo"
+      },
+      "items_freezer": {
+        "name": "Articoli nel Freezer"
+      },
+      "low_stock_items": {
+        "name": "Articoli in Esaurimento"
+      },
+      "zero_stock_items": {
+        "name": "Articoli Esauriti"
+      },
+      "ai_calls_month": {
+        "name": "Chiamate AI del Mese"
+      },
+      "last_backup": {
+        "name": "Ultimo Backup"
+      },
+      "days_to_next_expiry": {
+        "name": "Giorni alla Prossima Scadenza"
       }
     },
     "binary_sensor": {
@@ -111,16 +135,44 @@
       },
       "price_tracking_enabled": {
         "name": "Monitoraggio prezzi attivo"
+      },
+      "backup_overdue": {
+        "name": "Backup in Ritardo"
+      },
+      "bring_connected": {
+        "name": "Bring! Connesso"
       }
     },
     "button": {
       "refresh": {
         "name": "Aggiorna"
+      },
+      "refresh_prices": {
+        "name": "Aggiorna Prezzi"
+      },
+      "suggest_recipe": {
+        "name": "Suggerisci Ricetta"
+      },
+      "sync_smart_shopping": {
+        "name": "Sincronizza Lista Intelligente"
+      },
+      "clear_expired": {
+        "name": "Elimina Scaduti"
       }
     },
     "todo": {
       "shopping_list": {
         "name": "Lista della spesa"
+      }
+    },
+    "calendar": {
+      "expiry_calendar": {
+        "name": "Calendario Scadenze"
+      }
+    },
+    "text": {
+      "quick_add": {
+        "name": "Aggiunta Rapida alla Lista"
       }
     }
   },
@@ -164,6 +216,24 @@
     "refresh": {
       "name": "Aggiorna dati",
       "description": "Forza un aggiornamento immediato dei sensori EverShelf."
+    },
+    "suggest_recipe": {
+      "name": "Suggerisci Ricetta",
+      "description": "Chiedi all'AI di EverShelf di suggerire una ricetta con i prodotti in scadenza.",
+      "fields": {
+        "location": {
+          "name": "Posizione",
+          "description": "Posizione della dispensa (es. frigo, freezer). Vuoto per tutte."
+        }
+      }
+    },
+    "refresh_prices": {
+      "name": "Aggiorna Prezzi",
+      "description": "Ricalcola il totale stimato della lista della spesa dalla cache dei prezzi."
+    },
+    "clear_expired": {
+      "name": "Elimina Scaduti",
+      "description": "Rimuove le righe di inventario scadute con quantità zero."
     }
   }
 }
