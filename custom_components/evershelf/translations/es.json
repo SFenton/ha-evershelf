@@ -9,7 +9,7 @@
           "url": "URL del servidor"
         },
         "data_description": {
-          "url": "Ejemplo: `http://192.168.1.100` o `http://evershelf.local`"
+          "url": "La URL base de tu servidor EverShelf, sin barra diagonal final."
         }
       },
       "zeroconf_confirm": {

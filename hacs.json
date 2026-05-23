@@ -1,6 +1,5 @@
 {
   "name": "EverShelf",
-  "description": "Integrate your self-hosted EverShelf pantry manager with Home Assistant. Auto-discover via Zeroconf/mDNS, get sensors for expiring/expired/total items and shopping list, bidirectional todo entity, TTS and webhook support.",
   "render_readme": true,
   "homeassistant": "2024.1.0",
   "content_in_root": false,
