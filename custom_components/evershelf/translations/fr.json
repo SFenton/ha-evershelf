@@ -72,24 +72,39 @@
   "entity": {
     "sensor": {
       "expiring_soon": {
-        "name": "Bientôt périmé"
+        "name": "Expirant bientot"
+      },
+      "expiring_3d": {
+        "name": "Expirant dans 3 jours"
       },
       "expired_items": {
-        "name": "Produits périmés"
+        "name": "Produits expires"
       },
       "total_items": {
-        "name": "Total des produits"
+        "name": "Total produits"
+      },
+      "opened_items": {
+        "name": "Produits ouverts"
       },
       "shopping_items": {
         "name": "Liste de courses"
+      },
+      "shopping_total": {
+        "name": "Total courses estime"
       }
     },
     "binary_sensor": {
       "has_expired_items": {
-        "name": "Produits périmés présents"
+        "name": "Produits expires presents"
       },
       "has_expiring_items": {
-        "name": "Produits bientôt périmés présents"
+        "name": "Produits expirant bientot"
+      },
+      "has_shopping_items": {
+        "name": "Liste de courses active"
+      },
+      "price_tracking_enabled": {
+        "name": "Suivi des prix actif"
       }
     },
     "button": {

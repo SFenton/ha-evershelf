@@ -112,7 +112,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ) as resp:
                 if resp.status == 200:
                     info = await resp.json(content_type=None)
-                    return True, info.get("instance", "EverShelf")
+                    return True, info.get("name", info.get("instance", "EverShelf"))
                 if resp.status in (401, 403):
                     return False, "invalid_auth"
         except aiohttp.ClientError:

@@ -72,16 +72,25 @@
   "entity": {
     "sensor": {
       "expiring_soon": {
-        "name": "Próximos a caducar"
+        "name": "Proximos a vencer"
+      },
+      "expiring_3d": {
+        "name": "Vencen en 3 dias"
       },
       "expired_items": {
         "name": "Productos caducados"
       },
       "total_items": {
-        "name": "Total de productos"
+        "name": "Total productos"
+      },
+      "opened_items": {
+        "name": "Envases abiertos"
       },
       "shopping_items": {
         "name": "Lista de la compra"
+      },
+      "shopping_total": {
+        "name": "Total compra estimado"
       }
     },
     "binary_sensor": {
@@ -89,7 +98,13 @@
         "name": "Hay productos caducados"
       },
       "has_expiring_items": {
-        "name": "Hay productos próximos a caducar"
+        "name": "Hay productos por vencer"
+      },
+      "has_shopping_items": {
+        "name": "Lista de la compra activa"
+      },
+      "price_tracking_enabled": {
+        "name": "Seguimiento de precios activo"
       }
     },
     "button": {

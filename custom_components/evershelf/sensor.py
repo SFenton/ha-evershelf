@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components.sensor import (
+    SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
     SensorStateClass,
@@ -25,6 +26,8 @@ class EverShelfSensorDescription(SensorEntityDescription):
 
     data_key: str = ""
     extra_attr_keys: tuple[str, ...] = ()
+    # If True, the sensor is only available when price tracking is enabled
+    requires_price: bool = False
 
 
 SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
@@ -36,6 +39,14 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         data_key="expiring_soon",
         extra_attr_keys=("expiring_list", "last_updated"),
+    ),
+    EverShelfSensorDescription(
+        key="expiring_3d",
+        translation_key="expiring_3d",
+        icon="mdi:food-clock",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="expiring_3d",
     ),
     EverShelfSensorDescription(
         key="expired_items",
@@ -54,12 +65,29 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         data_key="total_items",
     ),
     EverShelfSensorDescription(
+        key="opened_items",
+        translation_key="opened_items",
+        icon="mdi:fridge-outline",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="opened_items",
+    ),
+    EverShelfSensorDescription(
         key="shopping_items",
         translation_key="shopping_items",
         icon="mdi:cart",
         native_unit_of_measurement="items",
         state_class=SensorStateClass.MEASUREMENT,
         data_key="shopping_items",
+    ),
+    EverShelfSensorDescription(
+        key="shopping_total",
+        translation_key="shopping_total",
+        icon="mdi:cart-percent",
+        device_class=SensorDeviceClass.MONETARY,
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="shopping_total",
+        requires_price=True,
     ),
 )
 
@@ -106,7 +134,23 @@ class EverShelfSensor(CoordinatorEntity[EverShelfCoordinator], SensorEntity):
         self._attr_device_info = evershelf_device_info(coordinator, entry)
 
     @property
-    def native_value(self) -> int | None:
+    def native_unit_of_measurement(self) -> str | None:
+        """Return currency from data for monetary sensor, otherwise use description value."""
+        if self.entity_description.device_class == SensorDeviceClass.MONETARY:
+            return self.coordinator.data.get("price_currency", "EUR")
+        return self.entity_description.native_unit_of_measurement
+
+    @property
+    def available(self) -> bool:
+        """Monetary sensor only available when price tracking is enabled."""
+        if not super().available:
+            return False
+        if self.entity_description.requires_price:
+            return bool(self.coordinator.data.get("price_tracking_enabled", False))
+        return True
+
+    @property
+    def native_value(self) -> int | float | None:
         return self.coordinator.data.get(self.entity_description.data_key)
 
     @property

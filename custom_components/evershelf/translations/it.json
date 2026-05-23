@@ -74,14 +74,23 @@
       "expiring_soon": {
         "name": "In scadenza"
       },
+      "expiring_3d": {
+        "name": "Scadono in 3 giorni"
+      },
       "expired_items": {
         "name": "Prodotti scaduti"
       },
       "total_items": {
         "name": "Prodotti totali"
       },
+      "opened_items": {
+        "name": "Confezioni aperte"
+      },
       "shopping_items": {
         "name": "Lista della spesa"
+      },
+      "shopping_total": {
+        "name": "Totale spesa stimato"
       }
     },
     "binary_sensor": {
@@ -90,6 +99,12 @@
       },
       "has_expiring_items": {
         "name": "Ci sono prodotti in scadenza"
+      },
+      "has_shopping_items": {
+        "name": "Lista della spesa attiva"
+      },
+      "price_tracking_enabled": {
+        "name": "Monitoraggio prezzi attivo"
       }
     },
     "button": {

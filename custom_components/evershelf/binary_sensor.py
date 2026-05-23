@@ -38,6 +38,19 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[EverShelfBinarySensorDescription, ...] = (
         icon="mdi:food-apple-outline",
         data_key="expiring_soon",
     ),
+    EverShelfBinarySensorDescription(
+        key="has_shopping_items",
+        translation_key="has_shopping_items",
+        device_class=BinarySensorDeviceClass.OCCUPANCY,
+        icon="mdi:cart",
+        data_key="shopping_items",
+    ),
+    EverShelfBinarySensorDescription(
+        key="price_tracking_enabled",
+        translation_key="price_tracking_enabled",
+        icon="mdi:tag-text-outline",
+        data_key="price_tracking_enabled",
+    ),
 )
 
 

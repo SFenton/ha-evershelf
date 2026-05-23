@@ -74,14 +74,23 @@
       "expiring_soon": {
         "name": "Expiring Soon"
       },
+      "expiring_3d": {
+        "name": "Expiring in 3 Days"
+      },
       "expired_items": {
         "name": "Expired Items"
       },
       "total_items": {
         "name": "Total Items"
       },
+      "opened_items": {
+        "name": "Opened Items"
+      },
       "shopping_items": {
         "name": "Shopping List"
+      },
+      "shopping_total": {
+        "name": "Shopping Total"
       }
     },
     "binary_sensor": {
@@ -90,6 +99,12 @@
       },
       "has_expiring_items": {
         "name": "Has Expiring Items"
+      },
+      "has_shopping_items": {
+        "name": "Shopping List Active"
+      },
+      "price_tracking_enabled": {
+        "name": "Price Tracking"
       }
     },
     "button": {
