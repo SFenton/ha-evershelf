@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connetti EverShelf",
+        "description": "Inserisci l'URL della tua istanza EverShelf e, opzionalmente, un token di accesso.",
+        "data": {
+          "url": "URL di EverShelf",
+          "token": "Token di accesso (opzionale)"
+        },
+        "data_description": {
+          "url": "URL base del tuo server EverShelf, es. http://192.168.1.100",
+          "token": "Bearer token se la tua istanza EverShelf usa SETTINGS_TOKEN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossibile connettersi a EverShelf. Verifica l'URL e riprova.",
+      "invalid_auth": "Connessione rifiutata: token di accesso non valido o mancante."
+    },
+    "abort": {
+      "already_configured": "Questa istanza EverShelf è già configurata."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "expiring_soon": { "name": "In scadenza" },
+      "expired_items": { "name": "Prodotti scaduti" },
+      "shopping_items": { "name": "Lista della spesa" },
+      "total_items":    { "name": "Prodotti totali" }
+    },
+    "binary_sensor": {
+      "has_expired_items":  { "name": "Ci sono prodotti scaduti" },
+      "has_expiring_items": { "name": "Ci sono prodotti in scadenza" }
+    }
+  },
+  "services": {
+    "add_to_shopping": {
+      "name": "Aggiungi alla lista spesa",
+      "description": "Aggiunge un prodotto alla lista della spesa di EverShelf.",
+      "fields": {
+        "name":     { "name": "Nome prodotto",  "description": "Nome del prodotto da aggiungere." },
+        "quantity": { "name": "Quantità",       "description": "Quantità da aggiungere (opzionale)." },
+        "unit":     { "name": "Unità",          "description": "Unità di misura, es. pz, kg, l (opzionale)." }
+      }
+    },
+    "mark_used": {
+      "name": "Segna come consumato",
+      "description": "Riduce la scorta di un prodotto nell'inventario.",
+      "fields": {
+        "name":     { "name": "Nome prodotto",   "description": "Nome del prodotto (ricerca case-insensitive)." },
+        "quantity": { "name": "Quantità usata",  "description": "Quantità da sottrarre alla scorta attuale." },
+        "unit":     { "name": "Unità",           "description": "Unità di misura (informativa)." }
+      }
+    },
+    "refresh": {
+      "name": "Aggiorna dati",
+      "description": "Forza un aggiornamento immediato dei sensori EverShelf."
+    }
+  }
+}

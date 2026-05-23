@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connecter EverShelf",
+        "description": "Entrez l'URL de votre instance EverShelf et, optionnellement, un jeton d'accès.",
+        "data": {
+          "url": "URL EverShelf",
+          "token": "Jeton d'accès (optionnel)"
+        },
+        "data_description": {
+          "url": "URL de base de votre serveur EverShelf, ex. http://192.168.1.100",
+          "token": "Jeton Bearer si votre instance EverShelf utilise SETTINGS_TOKEN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter à EverShelf. Vérifiez l'URL et réessayez.",
+      "invalid_auth": "Connexion refusée : jeton d'accès invalide ou manquant."
+    },
+    "abort": {
+      "already_configured": "Cette instance EverShelf est déjà configurée."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "expiring_soon": { "name": "Expire bientôt" },
+      "expired_items": { "name": "Produits expirés" },
+      "shopping_items": { "name": "Liste de courses" },
+      "total_items":    { "name": "Total des produits" }
+    },
+    "binary_sensor": {
+      "has_expired_items":  { "name": "Produits expirés présents" },
+      "has_expiring_items": { "name": "Produits expirant bientôt" }
+    }
+  },
+  "services": {
+    "add_to_shopping": {
+      "name": "Ajouter à la liste de courses",
+      "description": "Ajoute un produit à la liste de courses EverShelf.",
+      "fields": {
+        "name":     { "name": "Nom du produit", "description": "Nom du produit à ajouter." },
+        "quantity": { "name": "Quantité",       "description": "Quantité à ajouter (optionnel)." },
+        "unit":     { "name": "Unité",          "description": "Unité de mesure, ex. pcs, kg, l (optionnel)." }
+      }
+    },
+    "mark_used": {
+      "name": "Marquer comme utilisé",
+      "description": "Réduit le stock d'un produit de l'inventaire.",
+      "fields": {
+        "name":     { "name": "Nom du produit",    "description": "Nom de l'article (insensible à la casse)." },
+        "quantity": { "name": "Quantité utilisée", "description": "Quantité à soustraire du stock actuel." },
+        "unit":     { "name": "Unité",             "description": "Unité de mesure (informative)." }
+      }
+    },
+    "refresh": {
+      "name": "Actualiser les données",
+      "description": "Force une actualisation immédiate des données EverShelf."
+    }
+  }
+}

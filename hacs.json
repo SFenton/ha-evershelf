@@ -1,0 +1,8 @@
+{
+  "name": "EverShelf",
+  "description": "Integrate your self-hosted EverShelf pantry manager with Home Assistant — sensors, webhooks, TTS and push notifications.",
+  "render_readme": true,
+  "homeassistant": "2023.9.0",
+  "content_in_root": false,
+  "zip_release": false
+}

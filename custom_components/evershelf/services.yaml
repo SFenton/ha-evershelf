@@ -1,0 +1,61 @@
+add_to_shopping:
+  name: Add to Shopping List
+  description: Add a product to the EverShelf shopping list.
+  fields:
+    name:
+      name: Product name
+      description: Name of the product to add.
+      required: true
+      example: "Milk"
+      selector:
+        text:
+    quantity:
+      name: Quantity
+      description: Amount to add (optional).
+      required: false
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 9999
+          step: 0.1
+    unit:
+      name: Unit
+      description: "Unit of measurement (optional, e.g. pz, kg, l)."
+      required: false
+      example: "l"
+      selector:
+        text:
+
+mark_used:
+  name: Mark as Used
+  description: Reduce the stock of an inventory item by a given quantity.
+  fields:
+    name:
+      name: Product name
+      description: Name of the inventory item (case-insensitive match).
+      required: true
+      example: "Olive Oil"
+      selector:
+        text:
+    quantity:
+      name: Quantity used
+      description: Amount to subtract from the current stock.
+      required: true
+      example: 1
+      selector:
+        number:
+          min: 0.001
+          max: 9999
+          step: 0.001
+    unit:
+      name: Unit
+      description: Unit of measurement (informational only, must match the item's unit in EverShelf).
+      required: false
+      example: "l"
+      selector:
+        text:
+
+refresh:
+  name: Refresh Data
+  description: Force an immediate refresh of all EverShelf sensor data.

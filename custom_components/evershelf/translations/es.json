@@ -1,0 +1,61 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Conectar EverShelf",
+        "description": "Introduce la URL de tu instancia EverShelf y, opcionalmente, un token de acceso.",
+        "data": {
+          "url": "URL de EverShelf",
+          "token": "Token de acceso (opcional)"
+        },
+        "data_description": {
+          "url": "URL base de tu servidor EverShelf, ej. http://192.168.1.100",
+          "token": "Bearer token si tu instancia EverShelf usa SETTINGS_TOKEN"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se puede conectar a EverShelf. Verifica la URL e inténtalo de nuevo.",
+      "invalid_auth": "Conexión rechazada: token de acceso inválido o ausente."
+    },
+    "abort": {
+      "already_configured": "Esta instancia de EverShelf ya está configurada."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "expiring_soon": { "name": "Próximo a caducar" },
+      "expired_items": { "name": "Productos caducados" },
+      "shopping_items": { "name": "Lista de la compra" },
+      "total_items":    { "name": "Total de productos" }
+    },
+    "binary_sensor": {
+      "has_expired_items":  { "name": "Hay productos caducados" },
+      "has_expiring_items": { "name": "Hay productos próximos a caducar" }
+    }
+  },
+  "services": {
+    "add_to_shopping": {
+      "name": "Agregar a la lista de la compra",
+      "description": "Agrega un producto a la lista de la compra de EverShelf.",
+      "fields": {
+        "name":     { "name": "Nombre del producto", "description": "Nombre del producto a agregar." },
+        "quantity": { "name": "Cantidad",            "description": "Cantidad a agregar (opcional)." },
+        "unit":     { "name": "Unidad",              "description": "Unidad de medida, ej. uds, kg, l (opcional)." }
+      }
+    },
+    "mark_used": {
+      "name": "Marcar como usado",
+      "description": "Reduce el stock de un producto del inventario.",
+      "fields": {
+        "name":     { "name": "Nombre del producto",  "description": "Nombre del artículo (sin distinción de mayúsculas)." },
+        "quantity": { "name": "Cantidad consumida",   "description": "Cantidad a restar del stock actual." },
+        "unit":     { "name": "Unidad",               "description": "Unidad de medida (solo informativa)." }
+      }
+    },
+    "refresh": {
+      "name": "Actualizar datos",
+      "description": "Fuerza una actualización inmediata de los datos de EverShelf."
+    }
+  }
+}
