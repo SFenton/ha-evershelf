@@ -1,0 +1,26 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  release:
+    name: Prepare release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create zip archive
+        run: |
+          cd custom_components
+          zip -r ../evershelf.zip evershelf/
+          cd ..
+
+      - name: Upload zip to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: evershelf.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
