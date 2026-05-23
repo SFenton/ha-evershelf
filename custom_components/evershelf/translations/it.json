@@ -1,37 +1,90 @@
 {
+  "title": "EverShelf",
   "config": {
     "step": {
       "user": {
-        "title": "Connetti EverShelf",
-        "description": "Inserisci l'URL della tua istanza EverShelf e, opzionalmente, un token di accesso.",
+        "title": "Connetti a EverShelf",
+        "description": "Inserisci l'URL del tuo server EverShelf. Deve essere raggiungibile da Home Assistant.",
         "data": {
-          "url": "URL di EverShelf",
-          "token": "Token di accesso (opzionale)"
+          "url": "URL del server"
         },
         "data_description": {
-          "url": "URL base del tuo server EverShelf, es. http://192.168.1.100",
-          "token": "Bearer token se la tua istanza EverShelf usa SETTINGS_TOKEN"
+          "url": "Esempio: `http://192.168.1.100` o `http://evershelf.local`"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "EverShelf trovato in rete!",
+        "description": "Trovato **{name}** su `{url}`\n\n**Versione:** {version}  ·  **Prodotti in dispensa:** {items}\n\nVuoi aggiungere questa istanza EverShelf a Home Assistant?"
+      },
+      "auth": {
+        "title": "Autenticazione (opzionale)",
+        "description": "Connessione a **{name}** su `{url}`\n\nSe il tuo EverShelf ha un `SETTINGS_TOKEN` nel file `.env`, inseriscilo qui per abilitare le operazioni di scrittura.\n\nLascia vuoto per usare la **modalità sola lettura** — i sensori funzionano comunque.",
+        "data": {
+          "token": "Token impostazioni"
+        },
+        "data_description": {
+          "token": "Il valore di `SETTINGS_TOKEN` nel file `.env` di EverShelf. Lascia vuoto se non impostato."
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossibile connettersi a EverShelf. Verifica l'URL e riprova.",
-      "invalid_auth": "Connessione rifiutata: token di accesso non valido o mancante."
+      "cannot_connect": "Impossibile connettersi a EverShelf. Verifica l'URL e che il server sia raggiungibile da Home Assistant.",
+      "invalid_url": "Formato URL non valido. Usa `http://hostname` o `http://IP:porta`.",
+      "invalid_auth": "Token non valido. Controlla il `SETTINGS_TOKEN` nel file `.env` di EverShelf.",
+      "unknown": "Errore imprevisto."
     },
     "abort": {
-      "already_configured": "Questa istanza EverShelf è già configurata."
+      "already_configured": "Questa istanza EverShelf è già configurata.",
+      "cannot_connect": "EverShelf non è raggiungibile. Controlla la connettività di rete."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opzioni EverShelf",
+        "data": {
+          "expiry_days": "Soglia avviso scadenza (giorni)",
+          "scan_interval": "Intervallo aggiornamento (secondi)"
+        },
+        "data_description": {
+          "expiry_days": "Prodotti in scadenza entro questi giorni vengono contati come 'in scadenza'. Predefinito: 3.",
+          "scan_interval": "Ogni quanti secondi aggiornare i dati da EverShelf. Predefinito: 300 (5 minuti)."
+        }
+      }
     }
   },
   "entity": {
     "sensor": {
-      "expiring_soon": { "name": "In scadenza" },
-      "expired_items": { "name": "Prodotti scaduti" },
-      "shopping_items": { "name": "Lista della spesa" },
-      "total_items":    { "name": "Prodotti totali" }
+      "expiring_soon": {
+        "name": "In scadenza"
+      },
+      "expired_items": {
+        "name": "Prodotti scaduti"
+      },
+      "total_items": {
+        "name": "Prodotti totali"
+      },
+      "shopping_items": {
+        "name": "Lista della spesa"
+      }
     },
     "binary_sensor": {
-      "has_expired_items":  { "name": "Ci sono prodotti scaduti" },
-      "has_expiring_items": { "name": "Ci sono prodotti in scadenza" }
+      "has_expired_items": {
+        "name": "Ci sono prodotti scaduti"
+      },
+      "has_expiring_items": {
+        "name": "Ci sono prodotti in scadenza"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Aggiorna"
+      }
+    },
+    "todo": {
+      "shopping_list": {
+        "name": "Lista della spesa"
+      }
     }
   },
   "services": {
@@ -39,18 +92,36 @@
       "name": "Aggiungi alla lista spesa",
       "description": "Aggiunge un prodotto alla lista della spesa di EverShelf.",
       "fields": {
-        "name":     { "name": "Nome prodotto",  "description": "Nome del prodotto da aggiungere." },
-        "quantity": { "name": "Quantità",       "description": "Quantità da aggiungere (opzionale)." },
-        "unit":     { "name": "Unità",          "description": "Unità di misura, es. pz, kg, l (opzionale)." }
+        "name": {
+          "name": "Nome prodotto",
+          "description": "Nome del prodotto da aggiungere."
+        },
+        "quantity": {
+          "name": "Quantità",
+          "description": "Quantità da aggiungere (opzionale)."
+        },
+        "unit": {
+          "name": "Unità",
+          "description": "Unità di misura, es. pz, kg, l (opzionale)."
+        }
       }
     },
     "mark_used": {
       "name": "Segna come consumato",
       "description": "Riduce la scorta di un prodotto nell'inventario.",
       "fields": {
-        "name":     { "name": "Nome prodotto",   "description": "Nome del prodotto (ricerca case-insensitive)." },
-        "quantity": { "name": "Quantità usata",  "description": "Quantità da sottrarre alla scorta attuale." },
-        "unit":     { "name": "Unità",           "description": "Unità di misura (informativa)." }
+        "name": {
+          "name": "Nome prodotto",
+          "description": "Nome del prodotto (case-insensitive)."
+        },
+        "quantity": {
+          "name": "Quantità usata",
+          "description": "Quantità da sottrarre alla scorta."
+        },
+        "unit": {
+          "name": "Unità",
+          "description": "Unità di misura (informativa)."
+        }
       }
     },
     "refresh": {

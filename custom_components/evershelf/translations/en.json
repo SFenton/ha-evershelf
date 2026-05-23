@@ -1,37 +1,90 @@
 {
+  "title": "EverShelf",
   "config": {
     "step": {
       "user": {
         "title": "Connect to EverShelf",
-        "description": "Enter the URL of your EverShelf instance and, optionally, an access token.",
+        "description": "Enter the URL of your EverShelf server. It must be reachable from your Home Assistant host.",
         "data": {
-          "url": "EverShelf URL",
-          "token": "Access Token (optional)"
+          "url": "Server URL"
         },
         "data_description": {
-          "url": "Base URL of your EverShelf server, e.g. http://192.168.1.100",
-          "token": "Bearer token if your EverShelf instance is protected by SETTINGS_TOKEN"
+          "url": "Example: `http://192.168.1.100` or `http://evershelf.local`"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "EverShelf found on your network!",
+        "description": "Found **{name}** at `{url}`\n\n**Version:** {version}  ·  **Pantry items:** {items}\n\nDo you want to add this EverShelf instance to Home Assistant?"
+      },
+      "auth": {
+        "title": "Authentication (optional)",
+        "description": "Connecting to **{name}** at `{url}`\n\nIf your EverShelf has a `SETTINGS_TOKEN` in its `.env` file, enter it here to enable write operations (add items, mark as used).\n\nLeave empty to use **read-only mode** — sensors still work.",
+        "data": {
+          "token": "Settings Token"
+        },
+        "data_description": {
+          "token": "The `SETTINGS_TOKEN` value from your EverShelf `.env` file. Leave empty if not set."
         }
       }
     },
     "error": {
-      "cannot_connect": "Unable to connect to EverShelf. Check the URL and try again.",
-      "invalid_auth": "Connection refused: invalid or missing access token."
+      "cannot_connect": "Cannot connect to EverShelf. Check the URL and make sure the server is reachable from Home Assistant.",
+      "invalid_url": "Invalid URL format. Use `http://hostname` or `http://IP:port`.",
+      "invalid_auth": "Invalid token. Check the `SETTINGS_TOKEN` in your EverShelf `.env` file.",
+      "unknown": "Unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This EverShelf instance is already configured."
+      "already_configured": "This EverShelf instance is already configured.",
+      "cannot_connect": "Could not reach EverShelf. Please check network connectivity."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "EverShelf Options",
+        "data": {
+          "expiry_days": "Expiry alert threshold (days)",
+          "scan_interval": "Update interval (seconds)"
+        },
+        "data_description": {
+          "expiry_days": "Products expiring within this many days are counted as 'expiring soon'. Default: 3.",
+          "scan_interval": "How often to poll EverShelf for updates, in seconds. Default: 300 (5 min)."
+        }
+      }
     }
   },
   "entity": {
     "sensor": {
-      "expiring_soon": { "name": "Expiring Soon" },
-      "expired_items": { "name": "Expired Items" },
-      "shopping_items": { "name": "Shopping List" },
-      "total_items":    { "name": "Total Items" }
+      "expiring_soon": {
+        "name": "Expiring Soon"
+      },
+      "expired_items": {
+        "name": "Expired Items"
+      },
+      "total_items": {
+        "name": "Total Items"
+      },
+      "shopping_items": {
+        "name": "Shopping List"
+      }
     },
     "binary_sensor": {
-      "has_expired_items":  { "name": "Has Expired Items" },
-      "has_expiring_items": { "name": "Has Expiring Items" }
+      "has_expired_items": {
+        "name": "Has Expired Items"
+      },
+      "has_expiring_items": {
+        "name": "Has Expiring Items"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Refresh"
+      }
+    },
+    "todo": {
+      "shopping_list": {
+        "name": "Shopping List"
+      }
     }
   },
   "services": {
@@ -39,23 +92,41 @@
       "name": "Add to Shopping List",
       "description": "Add a product to the EverShelf shopping list.",
       "fields": {
-        "name":     { "name": "Product name",   "description": "Name of the product to add." },
-        "quantity": { "name": "Quantity",        "description": "Amount to add (optional)." },
-        "unit":     { "name": "Unit",            "description": "Unit of measurement, e.g. pz, kg, l (optional)." }
+        "name": {
+          "name": "Product name",
+          "description": "Name of the product to add."
+        },
+        "quantity": {
+          "name": "Quantity",
+          "description": "Amount to add (optional)."
+        },
+        "unit": {
+          "name": "Unit",
+          "description": "Unit of measurement, e.g. pz, kg, l (optional)."
+        }
       }
     },
     "mark_used": {
       "name": "Mark as Used",
       "description": "Reduce the stock of an inventory item.",
       "fields": {
-        "name":     { "name": "Product name",    "description": "Name of the item to reduce (case-insensitive)." },
-        "quantity": { "name": "Quantity used",   "description": "Amount to subtract from current stock." },
-        "unit":     { "name": "Unit",            "description": "Unit of measurement (informational)." }
+        "name": {
+          "name": "Product name",
+          "description": "Name of the item (case-insensitive match)."
+        },
+        "quantity": {
+          "name": "Quantity used",
+          "description": "Amount to subtract from current stock."
+        },
+        "unit": {
+          "name": "Unit",
+          "description": "Unit of measurement (informational)."
+        }
       }
     },
     "refresh": {
       "name": "Refresh Data",
-      "description": "Force an immediate refresh of EverShelf sensor data."
+      "description": "Force an immediate refresh of all EverShelf sensor data."
     }
   }
 }

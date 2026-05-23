@@ -1,37 +1,90 @@
 {
+  "title": "EverShelf",
   "config": {
     "step": {
       "user": {
-        "title": "Connecter EverShelf",
-        "description": "Entrez l'URL de votre instance EverShelf et, optionnellement, un jeton d'accès.",
+        "title": "Connecter à EverShelf",
+        "description": "Entrez l'URL de votre serveur EverShelf. Il doit être accessible depuis Home Assistant.",
         "data": {
-          "url": "URL EverShelf",
-          "token": "Jeton d'accès (optionnel)"
+          "url": "URL du serveur"
         },
         "data_description": {
-          "url": "URL de base de votre serveur EverShelf, ex. http://192.168.1.100",
-          "token": "Jeton Bearer si votre instance EverShelf utilise SETTINGS_TOKEN"
+          "url": "Exemple : `http://192.168.1.100` ou `http://evershelf.local`"
+        }
+      },
+      "zeroconf_confirm": {
+        "title": "EverShelf trouvé sur le réseau !",
+        "description": "**{name}** trouvé à `{url}`\n\n**Version :** {version}  ·  **Produits en stock :** {items}\n\nVoulez-vous ajouter cette instance EverShelf à Home Assistant ?"
+      },
+      "auth": {
+        "title": "Authentification (optionnel)",
+        "description": "Connexion à **{name}** sur `{url}`\n\nSi votre EverShelf a un `SETTINGS_TOKEN` dans le fichier `.env`, entrez-le ici.\n\nLaissez vide pour le **mode lecture seule** — les capteurs fonctionnent quand même.",
+        "data": {
+          "token": "Jeton de configuration"
+        },
+        "data_description": {
+          "token": "La valeur de `SETTINGS_TOKEN` dans le fichier `.env` d'EverShelf. Laisser vide si non défini."
         }
       }
     },
     "error": {
-      "cannot_connect": "Impossible de se connecter à EverShelf. Vérifiez l'URL et réessayez.",
-      "invalid_auth": "Connexion refusée : jeton d'accès invalide ou manquant."
+      "cannot_connect": "Impossible de se connecter à EverShelf. Vérifiez l'URL et l'accessibilité du serveur.",
+      "invalid_url": "Format d'URL invalide. Utilisez `http://hostname` ou `http://IP:port`.",
+      "invalid_auth": "Jeton invalide. Vérifiez le `SETTINGS_TOKEN` dans le fichier `.env` d'EverShelf.",
+      "unknown": "Erreur inattendue."
     },
     "abort": {
-      "already_configured": "Cette instance EverShelf est déjà configurée."
+      "already_configured": "Cette instance EverShelf est déjà configurée.",
+      "cannot_connect": "EverShelf est inaccessible. Vérifiez la connectivité réseau."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options EverShelf",
+        "data": {
+          "expiry_days": "Seuil d'alerte expiration (jours)",
+          "scan_interval": "Intervalle de mise à jour (secondes)"
+        },
+        "data_description": {
+          "expiry_days": "Produits expirant dans ce nombre de jours comptent comme 'bientôt expirés'. Défaut : 3.",
+          "scan_interval": "Fréquence d'interrogation d'EverShelf (secondes). Défaut : 300 (5 min)."
+        }
+      }
     }
   },
   "entity": {
     "sensor": {
-      "expiring_soon": { "name": "Expire bientôt" },
-      "expired_items": { "name": "Produits expirés" },
-      "shopping_items": { "name": "Liste de courses" },
-      "total_items":    { "name": "Total des produits" }
+      "expiring_soon": {
+        "name": "Bientôt périmé"
+      },
+      "expired_items": {
+        "name": "Produits périmés"
+      },
+      "total_items": {
+        "name": "Total des produits"
+      },
+      "shopping_items": {
+        "name": "Liste de courses"
+      }
     },
     "binary_sensor": {
-      "has_expired_items":  { "name": "Produits expirés présents" },
-      "has_expiring_items": { "name": "Produits expirant bientôt" }
+      "has_expired_items": {
+        "name": "Produits périmés présents"
+      },
+      "has_expiring_items": {
+        "name": "Produits bientôt périmés présents"
+      }
+    },
+    "button": {
+      "refresh": {
+        "name": "Actualiser"
+      }
+    },
+    "todo": {
+      "shopping_list": {
+        "name": "Liste de courses"
+      }
     }
   },
   "services": {
@@ -39,23 +92,41 @@
       "name": "Ajouter à la liste de courses",
       "description": "Ajoute un produit à la liste de courses EverShelf.",
       "fields": {
-        "name":     { "name": "Nom du produit", "description": "Nom du produit à ajouter." },
-        "quantity": { "name": "Quantité",       "description": "Quantité à ajouter (optionnel)." },
-        "unit":     { "name": "Unité",          "description": "Unité de mesure, ex. pcs, kg, l (optionnel)." }
+        "name": {
+          "name": "Nom du produit",
+          "description": "Nom du produit à ajouter."
+        },
+        "quantity": {
+          "name": "Quantité",
+          "description": "Quantité à ajouter (optionnel)."
+        },
+        "unit": {
+          "name": "Unité",
+          "description": "Unité de mesure, ex. pz, kg, l (optionnel)."
+        }
       }
     },
     "mark_used": {
       "name": "Marquer comme utilisé",
-      "description": "Réduit le stock d'un produit de l'inventaire.",
+      "description": "Réduit le stock d'un article d'inventaire.",
       "fields": {
-        "name":     { "name": "Nom du produit",    "description": "Nom de l'article (insensible à la casse)." },
-        "quantity": { "name": "Quantité utilisée", "description": "Quantité à soustraire du stock actuel." },
-        "unit":     { "name": "Unité",             "description": "Unité de mesure (informative)." }
+        "name": {
+          "name": "Nom du produit",
+          "description": "Nom de l'article (insensible à la casse)."
+        },
+        "quantity": {
+          "name": "Quantité utilisée",
+          "description": "Quantité à soustraire du stock."
+        },
+        "unit": {
+          "name": "Unité",
+          "description": "Unité de mesure (informatif)."
+        }
       }
     },
     "refresh": {
       "name": "Actualiser les données",
-      "description": "Force une actualisation immédiate des données EverShelf."
+      "description": "Force une actualisation immédiate de tous les données EverShelf."
     }
   }
 }

@@ -3,9 +3,14 @@
   "name": "EverShelf",
   "codeowners": ["@dadaloop82"],
   "config_flow": true,
-  "documentation": "https://github.com/dadaloop82/ha-evershelf",
+  "dependencies": [],
+  "documentation": "https://github.com/dadaloop82/ha-evershelf/wiki",
+  "homeassistant": "2024.1.0",
   "integration_type": "hub",
   "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/dadaloop82/ha-evershelf/issues",
+  "quality_scale": "silver",
   "requirements": [],
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "zeroconf": [{"type": "_evershelf._tcp.local."}]
 }
