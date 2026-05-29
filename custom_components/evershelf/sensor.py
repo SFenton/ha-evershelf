@@ -66,6 +66,7 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         native_unit_of_measurement="items",
         state_class=SensorStateClass.MEASUREMENT,
         data_key="expired_items",
+        extra_attr_keys=("expired_list",),
     ),
     EverShelfSensorDescription(
         key="total_items",
@@ -133,6 +134,7 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         native_unit_of_measurement="items",
         state_class=SensorStateClass.MEASUREMENT,
         data_key="low_stock_items",
+        extra_attr_keys=("low_stock_list",),
     ),
     EverShelfSensorDescription(
         key="zero_stock_items",
