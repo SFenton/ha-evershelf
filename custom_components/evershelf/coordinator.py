@@ -76,6 +76,10 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "shopping_list": [],
                     **attrs,
                 }
+                # Safety-net: ensure total_items is always set even if the PHP
+                # response structure changes. Uses state value as fallback when
+                # the sensor=total variant is called directly.
+                result.setdefault("total_items", result["state"])
 
             # Fetch shopping list (non-fatal if it fails)
             try:

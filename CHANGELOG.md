@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.1] - 2026-05-29
+
+### Fixed
+- **Coordinator safety-net** — `total_items` sensor value is guaranteed to be populated even if a future PHP API change moves the field out of `attributes`. Falls back to the response `state` value.
+- **Confirmed non-issues** — audited and verified that `expiring_soon`/`expiring_items` key names, `shopping_total` float/currency handling, and product list pass-through are all correctly implemented and working as designed.
+
+
 ## [1.2.0] - 2026-05-29
 
 ### Added
