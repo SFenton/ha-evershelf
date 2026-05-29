@@ -32,7 +32,7 @@ class EverShelfQuickAddText(TextEntity, RestoreEntity):
     _attr_translation_key = "quick_add"
     _attr_icon = "mdi:cart-plus"
     _attr_mode = TextMode.TEXT
-    _attr_native_min = 1
+    _attr_native_min = 0   # allow empty string (cleared after each submission)
     _attr_native_max = 100
     _attr_native_value = ""
 
