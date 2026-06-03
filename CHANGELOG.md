@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.3] - 2026-06-03
+
+### Changed
+- **API authentication**: supports EverShelf `API_TOKEN` (and legacy `SETTINGS_TOKEN`) via `X-API-Token`, `Authorization: Bearer`, and `api_token` query parameter
+- Config flow now **requires the token** when the server reports `api_token_required`
+- Updated strings/translations (IT, EN, DE, FR, ES)
+
+### Fixed
+- Integration broken after EverShelf security hardening (401 Unauthorized on all API calls)
+- Discovery still works without token (`ha_info` returns minimal info); full sensors need `API_TOKEN`
+
+---
+
 ## [1.2.1] - 2026-05-29
 
 ### Fixed

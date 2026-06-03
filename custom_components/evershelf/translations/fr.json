@@ -33,20 +33,21 @@
         "description": "**{name}** trouvé à `{url}`\n\n**Version :** {version}  ·  **Produits en stock :** {items}\n\nVoulez-vous ajouter cette instance EverShelf à Home Assistant ?"
       },
       "auth": {
-        "title": "Authentification (optionnel)",
-        "description": "Connexion à **{name}** sur `{url}`\n\nSi votre EverShelf a un `SETTINGS_TOKEN` dans le fichier `.env`, entrez-le ici.\n\nLaissez vide pour le **mode lecture seule** — les capteurs fonctionnent quand même.",
+        "title": "Authentification",
+        "description": "Connexion à **{name}** sur `{url}`\n\n{token_hint}\n\nEntrez la valeur `API_TOKEN` du fichier `.env` EverShelf.",
         "data": {
-          "token": "Jeton de configuration"
+          "token": "Jeton API"
         },
         "data_description": {
-          "token": "La valeur de `SETTINGS_TOKEN` dans le fichier `.env` d'EverShelf. Laisser vide si non défini."
+          "token": "Le `API_TOKEN` (ou legacy `SETTINGS_TOKEN`) du fichier `.env` EverShelf."
         }
       }
     },
     "error": {
       "cannot_connect": "Impossible de se connecter à EverShelf. Vérifiez l'URL et l'accessibilité du serveur.",
       "invalid_url": "Format d'URL invalide. Utilisez `http://hostname` ou `http://IP:port`.",
-      "invalid_auth": "Jeton invalide. Vérifiez le `SETTINGS_TOKEN` dans le fichier `.env` d'EverShelf.",
+      "invalid_auth": "Jeton invalide. Vérifiez `API_TOKEN` dans le fichier `.env`.",
+      "token_required": "Ce serveur EverShelf requiert un jeton API. Entrez `API_TOKEN` depuis `.env`.",
       "unknown": "Erreur inattendue."
     },
     "abort": {

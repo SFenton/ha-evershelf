@@ -10,6 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .api_auth import evershelf_headers, evershelf_params
 from .const import DEFAULT_EXPIRY_DAYS, DEFAULT_SCAN_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,11 +43,11 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _headers(self) -> dict[str, str]:
-        h: dict[str, str] = {}
-        if self.token:
-            h["Authorization"] = f"Bearer {self.token}"
-        return h
+    def _headers(self, *, json_body: bool = False) -> dict[str, str]:
+        return evershelf_headers(self.token, json_body=json_body)
+
+    def _params(self, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        return evershelf_params(self.token, params)
 
     def _session(self) -> aiohttp.ClientSession:
         return async_get_clientsession(self.hass, verify_ssl=False)
@@ -63,10 +64,14 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Fetch sensor/inventory data
             async with session.get(
                 f"{self.url}/api/index.php",
-                params={"action": "ha_sensor", "expiry_days": self.expiry_days},
+                params=self._params(
+                    {"action": "ha_sensor", "expiry_days": self.expiry_days}
+                ),
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
+                if resp.status == 401:
+                    raise UpdateFailed("EverShelf API token invalid or missing")
                 if resp.status != 200:
                     raise UpdateFailed(f"HTTP {resp.status} from EverShelf")
                 raw: dict[str, Any] = await resp.json(content_type=None)
@@ -85,7 +90,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             try:
                 async with session.get(
                     f"{self.url}/api/index.php",
-                    params={"action": "ha_shopping_items"},
+                    params=self._params({"action": "ha_shopping_items"}),
                     headers=self._headers(),
                     timeout=aiohttp.ClientTimeout(total=10),
                 ) as resp2:
@@ -110,12 +115,14 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             async with self._session().get(
                 f"{self.url}/api/index.php",
-                params={"action": "ha_info"},
+                params=self._params({"action": "ha_info"}),
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
                 if resp.status == 200:
                     info = await resp.json(content_type=None)
+                    if info.get("api_token_required") and not self.token:
+                        return False, "token_required"
                     return True, info.get("name", info.get("instance", "EverShelf"))
                 if resp.status in (401, 403):
                     return False, "invalid_auth"
@@ -126,7 +133,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             async with self._session().get(
                 f"{self.url}/api/index.php",
-                params={"action": "ha_sensor"},
+                params=self._params({"action": "ha_sensor"}),
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
@@ -144,7 +151,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             async with self._session().get(
                 f"{self.url}/api/index.php",
-                params={"action": "ha_info"},
+                params=self._params({"action": "ha_info"}),
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
@@ -187,7 +194,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             async with session.get(
                 f"{self.url}/api/index.php",
-                params={"action": "inventory_list"},
+                params=self._params({"action": "inventory_list"}),
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
@@ -211,8 +218,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
             async with session.post(
                 f"{self.url}/api/index.php",
-                params={"action": "update_inventory"},
-                headers={**self._headers(), "Content-Type": "application/json"},
+                params=self._params({"action": "update_inventory"}),
+                headers=self._headers(json_body=True),
                 json={"id": item_id, "quantity": new_qty},
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp2:
@@ -230,8 +237,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             async with self._session().post(
                 f"{self.url}/api/index.php",
-                params={"action": action},
-                headers={**self._headers(), "Content-Type": "application/json"},
+                params=self._params({"action": action}),
+                headers=self._headers(json_body=True),
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
@@ -243,7 +250,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _get_json(self, action: str, params: dict | None = None, timeout: int = 15) -> dict[str, Any] | None:
         """GET request returning parsed JSON or None on error."""
         try:
-            p = {"action": action, **(params or {})}
+            p = self._params({"action": action, **(params or {})})
             async with self._session().get(
                 f"{self.url}/api/index.php",
                 params=p,

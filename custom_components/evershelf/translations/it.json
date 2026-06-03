@@ -33,20 +33,21 @@
         "description": "Trovato **{name}** su `{url}`\n\n**Versione:** {version}  ·  **Prodotti in dispensa:** {items}\n\nVuoi aggiungere questa istanza EverShelf a Home Assistant?"
       },
       "auth": {
-        "title": "Autenticazione (opzionale)",
-        "description": "Connessione a **{name}** su `{url}`\n\nSe il tuo EverShelf ha un `SETTINGS_TOKEN` nel file `.env`, inseriscilo qui per abilitare le operazioni di scrittura.\n\nLascia vuoto per usare la **modalità sola lettura** — i sensori funzionano comunque.",
+        "title": "Autenticazione",
+        "description": "Connessione a **{name}** su `{url}`\n\n{token_hint}\n\nInserisci il valore `API_TOKEN` dal file `.env` di EverShelf.",
         "data": {
-          "token": "Token impostazioni"
+          "token": "Token API"
         },
         "data_description": {
-          "token": "Il valore di `SETTINGS_TOKEN` nel file `.env` di EverShelf. Lascia vuoto se non impostato."
+          "token": "Il valore `API_TOKEN` (o legacy `SETTINGS_TOKEN`) nel file `.env` di EverShelf."
         }
       }
     },
     "error": {
       "cannot_connect": "Impossibile connettersi a EverShelf. Verifica l'URL e che il server sia raggiungibile da Home Assistant.",
       "invalid_url": "Formato URL non valido. Usa `http://hostname` o `http://IP:porta`.",
-      "invalid_auth": "Token non valido. Controlla il `SETTINGS_TOKEN` nel file `.env` di EverShelf.",
+      "invalid_auth": "Token non valido. Controlla `API_TOKEN` nel file `.env` di EverShelf.",
+      "token_required": "Questo server EverShelf richiede un token API. Inserisci `API_TOKEN` dal file `.env`.",
       "unknown": "Errore imprevisto."
     },
     "abort": {

@@ -14,6 +14,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .api_auth import evershelf_headers, evershelf_params
 from .const import (
     CONF_EXPIRY_DAYS,
     CONF_SCAN_INTERVAL,
@@ -38,16 +39,14 @@ async def _async_test_url(
 ) -> tuple[bool, str, dict[str, Any]]:
     """Test EverShelf URL. Returns (ok, error_key, info_dict)."""
     session = async_get_clientsession(hass, verify_ssl=False)
-    headers: dict[str, str] = {}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
+    headers = evershelf_headers(token)
 
     # Try ha_info first (richer response)
     for action in ("ha_info", "ha_sensor"):
         try:
             async with session.get(
                 f"{url}/api/index.php",
-                params={"action": action},
+                params=evershelf_params(token, {"action": action}),
                 headers=headers,
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
@@ -63,7 +62,7 @@ async def _async_test_url(
                         "items_count": attrs.get("total_items", "?"),
                     }
                 if resp.status in (401, 403):
-                    return False, "invalid_auth", {}
+                    return False, "invalid_auth" if token else "token_required", {}
         except aiohttp.ClientError:
             pass
 
@@ -207,7 +206,9 @@ class EverShelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             token = (user_input.get(CONF_TOKEN) or "").strip()
-            if token:
+            if self._info.get("api_token_required") and not token:
+                errors[CONF_TOKEN] = "token_required"
+            elif token:
                 ok, err_key, _ = await _async_test_url(
                     self.hass, self._discovered_url, token
                 )
@@ -236,6 +237,11 @@ class EverShelfConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "url": self._discovered_url,
                 "name": self._info.get("instance", DEFAULT_NAME),
+                "token_hint": (
+                    "API_TOKEN is required on this server."
+                    if self._info.get("api_token_required")
+                    else "Optional — only if API_TOKEN is set in .env."
+                ),
             },
             errors=errors,
         )
