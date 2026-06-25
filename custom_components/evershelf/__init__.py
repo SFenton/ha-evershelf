@@ -67,6 +67,34 @@ _READ_EXPIRY_IMAGE_SCHEMA = vol.Schema(
     }
 )
 
+_INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "altro")
+
+_ADD_SCANNED_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Optional("product_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Required("name"): cv.string,
+        vol.Optional("barcode"): cv.string,
+        vol.Optional("brand"): cv.string,
+        vol.Optional("category"): cv.string,
+        vol.Optional("image_url"): cv.string,
+        vol.Optional("unit"): cv.string,
+        vol.Optional("default_quantity"): vol.Coerce(float),
+        vol.Optional("notes"): cv.string,
+        vol.Optional("package_unit"): cv.string,
+        vol.Optional("package_size"): vol.Coerce(float),
+        vol.Optional("shopping_name"): cv.string,
+        vol.Optional("nutriments"): dict,
+        vol.Optional("quantity", default=1): vol.All(
+            vol.Coerce(float), vol.Range(min=0.001, max=100000)
+        ),
+        vol.Optional("location", default="dispensa"): vol.In(_INVENTORY_LOCATIONS),
+        vol.Optional("expiry_date"): cv.string,
+        vol.Optional("vacuum_sealed", default=False): cv.boolean,
+        vol.Optional("expiry_user_set"): cv.boolean,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
 _READ_EXPIRY_IMAGE_SOURCES = ("image", "image_path", "camera_entity_id")
 
 
@@ -160,6 +188,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise ServiceValidationError("EverShelf: expiry image read failed")
             return result
 
+        async def _handle_add_scanned_item(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            item = dict(call.data)
+            item.pop("config_entry_id", None)
+            if not item["name"].strip():
+                raise ServiceValidationError("EverShelf: product name is required")
+            result = await coord.async_add_scanned_item(item)
+            if not result or result.get("success") is not True:
+                if isinstance(result, dict):
+                    message = (
+                        result.get("message")
+                        or result.get("error")
+                        or "scanned item add failed"
+                    )
+                else:
+                    message = "scanned item add failed"
+                raise ServiceValidationError(f"EverShelf: {message}")
+            await coord.async_request_refresh()
+            return result
+
         hass.services.async_register(
             DOMAIN, "add_to_shopping", _handle_add_to_shopping, schema=_ADD_TO_SHOPPING_SCHEMA
         )
@@ -184,6 +232,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=_READ_EXPIRY_IMAGE_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
         )
+        hass.services.async_register(
+            DOMAIN,
+            "add_scanned_item",
+            _handle_add_scanned_item,
+            schema=_ADD_SCANNED_ITEM_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
 
     return True
 
@@ -204,6 +259,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "clear_expired",
             "resolve_barcode",
             "read_expiry_image",
+            "add_scanned_item",
         ):
             hass.services.async_remove(DOMAIN, svc)
 

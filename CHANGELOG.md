@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.6] - 2026-06-25
+
+### Added
+- `evershelf.add_scanned_item` response-capable service for scanner frontends. It creates or merges a product when needed, adds inventory with quantity/location/expiry metadata, and returns the product/inventory API responses.
+
+---
+
 ## [1.2.5] - 2026-06-25
 
 ### Added

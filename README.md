@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **8 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `resolve_barcode`, `read_expiry_image` |
+| **9 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -233,6 +233,41 @@ Example response:
   "expiry_date": "2026-09-30",
   "raw_text": "EXP 30/09/2026",
   "source": "ocr"
+}
+```
+
+### `evershelf.add_scanned_item`
+
+Save a scanned product if needed, then add it to EverShelf inventory. Use `return_response: true` from Developer Tools or a `response_variable` in automations/scripts to read the product and inventory API responses.
+
+```yaml
+service: evershelf.add_scanned_item
+data:
+  name: "Milk"
+  barcode: "3017620422003"
+  quantity: 1
+  location: "frigo"
+  expiry_date: "2026-06-30"
+  expiry_user_set: true
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "product_id": 42,
+  "product": {
+    "success": true,
+    "id": 42,
+    "merged": false
+  },
+  "inventory": {
+    "success": true,
+    "new_qty": 1,
+    "total_qty": 1,
+    "unit": "pz"
+  }
 }
 ```
 

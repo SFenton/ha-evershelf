@@ -328,6 +328,109 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             timeout=60,
         )
 
+    async def async_save_product(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Create or update an EverShelf product and return the API response."""
+        return await self._post_json("product_save", payload, timeout=30)
+
+    async def async_add_inventory(self, payload: dict[str, Any]) -> dict[str, Any] | None:
+        """Add quantity to EverShelf inventory and return the API response."""
+        return await self._post_json("inventory_add", payload, timeout=30)
+
+    async def async_add_scanned_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
+        """Save a scanned product when needed, then add it to inventory."""
+        product_id = item.get("product_id")
+        product_response: dict[str, Any] | None = None
+
+        if product_id is None:
+            product_payload: dict[str, Any] = {}
+            for key in (
+                "name",
+                "barcode",
+                "brand",
+                "category",
+                "image_url",
+                "unit",
+                "notes",
+                "package_unit",
+                "shopping_name",
+            ):
+                value = item.get(key)
+                if isinstance(value, str):
+                    value = value.strip()
+                if value not in (None, ""):
+                    product_payload[key] = value
+            for key in ("default_quantity",):
+                value = item.get(key)
+                if value is not None:
+                    product_payload[key] = value
+            if isinstance(item.get("nutriments"), dict):
+                product_payload["nutriments"] = item["nutriments"]
+
+            product_response = await self.async_save_product(product_payload)
+            if product_response is None:
+                return {
+                    "success": False,
+                    "stage": "product_save",
+                    "error": "product_save_failed",
+                    "message": "Could not save the scanned product.",
+                }
+            if product_response.get("success") is not True or not product_response.get("id"):
+                return {
+                    "success": False,
+                    "stage": "product_save",
+                    "error": product_response.get("error", "product_save_failed"),
+                    "message": product_response.get("message", "Could not save the scanned product."),
+                    "product": product_response,
+                }
+            product_id = product_response["id"]
+
+        inventory_payload: dict[str, Any] = {
+            "product_id": int(product_id),
+            "quantity": item.get("quantity", 1),
+            "location": item.get("location", "dispensa"),
+        }
+        for key in (
+            "expiry_date",
+            "unit",
+            "package_unit",
+            "package_size",
+            "vacuum_sealed",
+            "expiry_user_set",
+        ):
+            value = item.get(key)
+            if isinstance(value, str):
+                value = value.strip()
+            if value not in (None, ""):
+                inventory_payload[key] = value
+
+        inventory_response = await self.async_add_inventory(inventory_payload)
+        if inventory_response is None:
+            return {
+                "success": False,
+                "stage": "inventory_add",
+                "error": "inventory_add_failed",
+                "message": "Could not add the scanned product to inventory.",
+                "product_id": int(product_id),
+                "product": product_response,
+            }
+        if inventory_response.get("success") is not True:
+            return {
+                "success": False,
+                "stage": "inventory_add",
+                "error": inventory_response.get("error", "inventory_add_failed"),
+                "message": inventory_response.get("message", "Could not add the scanned product to inventory."),
+                "product_id": int(product_id),
+                "product": product_response,
+                "inventory": inventory_response,
+            }
+
+        return {
+            "success": True,
+            "product_id": int(product_id),
+            "product": product_response,
+            "inventory": inventory_response,
+        }
+
     async def async_get_calendar_events(self) -> list[dict[str, Any]]:
         """Fetch all expiry events from EverShelf for the calendar entity."""
         data = await self._get_json("ha_calendar")

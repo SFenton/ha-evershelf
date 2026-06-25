@@ -129,3 +129,127 @@ read_expiry_image:
       required: false
       selector:
         text:
+
+add_scanned_item:
+  name: Add Scanned Item
+  description: Save a scanned product if needed and add it to EverShelf inventory.
+  fields:
+    product_id:
+      name: Product ID
+      description: Existing EverShelf product ID. When omitted, the service creates or merges a product first.
+      required: false
+      selector:
+        number:
+          min: 1
+          mode: box
+    name:
+      name: Product name
+      description: Product name to save or add.
+      required: true
+      example: "Milk"
+      selector:
+        text:
+    barcode:
+      name: Barcode
+      description: Scanned product barcode.
+      required: false
+      example: "3017620422003"
+      selector:
+        text:
+    brand:
+      name: Brand
+      description: Product brand.
+      required: false
+      selector:
+        text:
+    category:
+      name: Category
+      description: Product category.
+      required: false
+      selector:
+        text:
+    image_url:
+      name: Image URL
+      description: Product image URL from barcode lookup.
+      required: false
+      selector:
+        text:
+    quantity:
+      name: Quantity
+      description: Quantity to add to inventory.
+      required: false
+      default: 1
+      selector:
+        number:
+          min: 0.001
+          max: 100000
+          step: 0.001
+          mode: box
+    location:
+      name: Location
+      description: Inventory location.
+      required: false
+      default: dispensa
+      selector:
+        select:
+          options:
+            - dispensa
+            - frigo
+            - freezer
+            - altro
+    expiry_date:
+      name: Expiry date
+      description: Expiration date in YYYY-MM-DD format.
+      required: false
+      example: "2026-06-30"
+      selector:
+        date:
+    unit:
+      name: Unit
+      description: Product unit such as pz, kg, or l.
+      required: false
+      selector:
+        text:
+    default_quantity:
+      name: Default quantity
+      description: Default package quantity for newly saved products.
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 0.001
+          mode: box
+    package_unit:
+      name: Package unit
+      description: Package unit for configurable packages.
+      required: false
+      selector:
+        text:
+    package_size:
+      name: Package size
+      description: Package size for configurable packages.
+      required: false
+      selector:
+        number:
+          min: 0
+          step: 0.001
+          mode: box
+    vacuum_sealed:
+      name: Vacuum sealed
+      description: Whether the added inventory row is vacuum sealed.
+      required: false
+      default: false
+      selector:
+        boolean:
+    expiry_user_set:
+      name: Expiry user set
+      description: Whether the expiry date was explicitly supplied by the user or scanner flow.
+      required: false
+      selector:
+        boolean:
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
