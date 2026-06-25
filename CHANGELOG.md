@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.4] - 2026-06-25
+
+### Added
+- `evershelf.resolve_barcode` response-capable service for barcode scanner frontends. It proxies EverShelf's `resolve_barcode` API and returns product match data to Home Assistant callers.
+
+---
+
 ## [1.2.3] - 2026-06-03
 
 ### Changed

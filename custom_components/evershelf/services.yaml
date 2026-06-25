@@ -80,3 +80,20 @@ clear_expired:
   name: Clear Expired
   description: Remove expired inventory rows with zero stock from EverShelf.
 
+resolve_barcode:
+  name: Resolve Barcode
+  description: Resolve a scanned barcode through EverShelf and return matching product data.
+  fields:
+    barcode:
+      name: Barcode
+      description: Barcode digits to resolve.
+      required: true
+      example: "3017620422003"
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:

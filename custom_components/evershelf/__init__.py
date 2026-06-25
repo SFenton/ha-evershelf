@@ -5,7 +5,7 @@ import logging
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import ServiceValidationError
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
@@ -45,6 +45,13 @@ _MARK_USED_SCHEMA = vol.Schema(
         vol.Required("name"): cv.string,
         vol.Required("quantity"): vol.All(vol.Coerce(float), vol.Range(min=0.001)),
         vol.Optional("unit"): cv.string,
+    }
+)
+
+_RESOLVE_BARCODE_SCHEMA = vol.Schema(
+    {
+        vol.Required("barcode"): cv.string,
+        vol.Optional("config_entry_id"): cv.string,
     }
 )
 
@@ -121,6 +128,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await coord.async_clear_expired()
             await coord.async_request_refresh()
 
+        async def _handle_resolve_barcode(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            barcode = call.data["barcode"].strip()
+            if not barcode:
+                raise ServiceValidationError("EverShelf: barcode is required")
+            result = await coord.async_resolve_barcode(barcode)
+            if result is None:
+                raise ServiceValidationError("EverShelf: barcode lookup failed")
+            return result
+
         hass.services.async_register(
             DOMAIN, "add_to_shopping", _handle_add_to_shopping, schema=_ADD_TO_SHOPPING_SCHEMA
         )
@@ -131,6 +148,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "suggest_recipe", _handle_suggest_recipe)
         hass.services.async_register(DOMAIN, "refresh_prices", _handle_refresh_prices)
         hass.services.async_register(DOMAIN, "clear_expired", _handle_clear_expired)
+        hass.services.async_register(
+            DOMAIN,
+            "resolve_barcode",
+            _handle_resolve_barcode,
+            schema=_RESOLVE_BARCODE_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
 
     return True
 
@@ -142,7 +166,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id, None)
 
     if not hass.data.get(DOMAIN):
-        for svc in ("add_to_shopping", "mark_used", "refresh", "suggest_recipe", "refresh_prices", "clear_expired"):
+        for svc in ("add_to_shopping", "mark_used", "refresh", "suggest_recipe", "refresh_prices", "clear_expired", "resolve_barcode"):
             hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok

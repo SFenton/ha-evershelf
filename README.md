@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **6 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired` |
+| **7 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `resolve_barcode` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -190,6 +190,29 @@ Remove expired inventory rows whose quantity is zero.
 
 ```yaml
 service: evershelf.clear_expired
+```
+
+### `evershelf.resolve_barcode`
+
+Resolve a scanned barcode through EverShelf's product database and external lookup chain. Use `return_response: true` when calling the service from Home Assistant or a frontend client.
+
+```yaml
+service: evershelf.resolve_barcode
+data:
+  barcode: "3017620422003"
+```
+
+Example response:
+
+```json
+{
+  "found": true,
+  "source": "openfoodfacts_it",
+  "product": {
+    "name": "Nutella",
+    "brand": "Ferrero"
+  }
+}
 ```
 
 ---

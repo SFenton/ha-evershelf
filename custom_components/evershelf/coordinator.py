@@ -290,6 +290,14 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Remove expired zero-stock inventory rows."""
         return await self._get_json("ha_clear_expired")
 
+    async def async_resolve_barcode(self, barcode: str) -> dict[str, Any] | None:
+        """Resolve a barcode through EverShelf's local DB and external lookup chain."""
+        return await self._get_json(
+            "resolve_barcode",
+            {"barcode": barcode},
+            timeout=45,
+        )
+
     async def async_get_calendar_events(self) -> list[dict[str, Any]]:
         """Fetch all expiry events from EverShelf for the calendar entity."""
         data = await self._get_json("ha_calendar")
