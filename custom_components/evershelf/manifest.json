@@ -10,6 +10,6 @@
   "issue_tracker": "https://github.com/SFenton/ha-evershelf/issues",
   "quality_scale": "silver",
   "requirements": [],
-  "version": "1.2.4",
+  "version": "1.2.5",
   "zeroconf": [{"type": "_evershelf._tcp.local."}]
 }

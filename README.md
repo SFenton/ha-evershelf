@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **7 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `resolve_barcode` |
+| **8 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `resolve_barcode`, `read_expiry_image` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -212,6 +212,27 @@ Example response:
     "name": "Nutella",
     "brand": "Ferrero"
   }
+}
+```
+
+### `evershelf.read_expiry_image`
+
+Send an expiry-label photo to EverShelf's OCR/Gemini endpoint and return the parsed date. Provide exactly one of `image`, `image_path`, or `camera_entity_id`. Use `return_response: true` from Developer Tools or a `response_variable` in automations/scripts to read the result.
+
+```yaml
+service: evershelf.read_expiry_image
+data:
+  camera_entity_id: camera.kitchen_tablet
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "expiry_date": "2026-09-30",
+  "raw_text": "EXP 30/09/2026",
+  "source": "ocr"
 }
 ```
 

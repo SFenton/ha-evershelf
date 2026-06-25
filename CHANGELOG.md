@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.5] - 2026-06-25
+
+### Added
+- `evershelf.read_expiry_image` response-capable service for expiry-label photos. It accepts a base64 image, allowlisted image path, or camera entity snapshot and returns EverShelf's parsed expiry date response.
+
+---
+
 ## [1.2.4] - 2026-06-25
 
 ### Added

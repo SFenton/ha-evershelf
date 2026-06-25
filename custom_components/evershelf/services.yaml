@@ -97,3 +97,35 @@ resolve_barcode:
       required: false
       selector:
         text:
+
+read_expiry_image:
+  name: Read Expiry Image
+  description: Send an expiry-label image to EverShelf OCR/Gemini and return the parsed expiry date.
+  fields:
+    image:
+      name: Base64 image
+      description: Base64-encoded JPEG/PNG image data, with or without a data:image/... prefix. Provide exactly one image source.
+      required: false
+      selector:
+        text:
+          multiline: true
+    image_path:
+      name: Image path
+      description: Path to an image file on the Home Assistant host. The path must be allowed by Home Assistant.
+      required: false
+      example: "/config/www/evershelf-expiry.jpg"
+      selector:
+        text:
+    camera_entity_id:
+      name: Camera entity
+      description: Camera entity to capture and send. Provide exactly one image source.
+      required: false
+      selector:
+        entity:
+          domain: camera
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:

@@ -235,6 +235,28 @@
     "clear_expired": {
       "name": "Clear Expired",
       "description": "Remove expired zero-stock inventory rows from EverShelf."
+    },
+    "read_expiry_image": {
+      "name": "Read Expiry Image",
+      "description": "Send an expiry-label image to EverShelf OCR/Gemini and return the parsed expiry date.",
+      "fields": {
+        "image": {
+          "name": "Base64 image",
+          "description": "Base64-encoded JPEG/PNG image data, with or without a data URL prefix."
+        },
+        "image_path": {
+          "name": "Image path",
+          "description": "Path to an allowlisted image file on the Home Assistant host."
+        },
+        "camera_entity_id": {
+          "name": "Camera entity",
+          "description": "Camera entity to capture and send."
+        },
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional EverShelf config entry ID when multiple EverShelf instances are configured."
+        }
+      }
     }
   }
 }

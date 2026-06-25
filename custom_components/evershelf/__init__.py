@@ -1,12 +1,15 @@
 """EverShelf Home Assistant integration."""
 from __future__ import annotations
 
+import base64
+import binascii
 import logging
+from pathlib import Path
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
-from homeassistant.exceptions import ServiceValidationError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
 
@@ -54,6 +57,17 @@ _RESOLVE_BARCODE_SCHEMA = vol.Schema(
         vol.Optional("config_entry_id"): cv.string,
     }
 )
+
+_READ_EXPIRY_IMAGE_SCHEMA = vol.Schema(
+    {
+        vol.Optional("image"): cv.string,
+        vol.Optional("image_path"): cv.string,
+        vol.Optional("camera_entity_id"): cv.entity_id,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_READ_EXPIRY_IMAGE_SOURCES = ("image", "image_path", "camera_entity_id")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -138,6 +152,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise ServiceValidationError("EverShelf: barcode lookup failed")
             return result
 
+        async def _handle_read_expiry_image(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            image_base64 = await _get_expiry_image_base64(hass, call)
+            result = await coord.async_read_expiry_image(image_base64)
+            if result is None:
+                raise ServiceValidationError("EverShelf: expiry image read failed")
+            return result
+
         hass.services.async_register(
             DOMAIN, "add_to_shopping", _handle_add_to_shopping, schema=_ADD_TO_SHOPPING_SCHEMA
         )
@@ -155,6 +177,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             schema=_RESOLVE_BARCODE_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
         )
+        hass.services.async_register(
+            DOMAIN,
+            "read_expiry_image",
+            _handle_read_expiry_image,
+            schema=_READ_EXPIRY_IMAGE_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
 
     return True
 
@@ -166,7 +195,16 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].pop(entry.entry_id, None)
 
     if not hass.data.get(DOMAIN):
-        for svc in ("add_to_shopping", "mark_used", "refresh", "suggest_recipe", "refresh_prices", "clear_expired", "resolve_barcode"):
+        for svc in (
+            "add_to_shopping",
+            "mark_used",
+            "refresh",
+            "suggest_recipe",
+            "refresh_prices",
+            "clear_expired",
+            "resolve_barcode",
+            "read_expiry_image",
+        ):
             hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok
@@ -189,3 +227,87 @@ def _get_coordinator(hass: HomeAssistant, call: ServiceCall) -> EverShelfCoordin
     if not entries:
         raise ServiceValidationError("EverShelf: no instances configured")
     return next(iter(entries.values()))
+
+
+async def _get_expiry_image_base64(hass: HomeAssistant, call: ServiceCall) -> str:
+    """Return base64 image data from exactly one supported service field."""
+    provided = [
+        source
+        for source in _READ_EXPIRY_IMAGE_SOURCES
+        if call.data.get(source)
+    ]
+    if len(provided) != 1:
+        raise ServiceValidationError(
+            "EverShelf: provide exactly one of image, image_path, or camera_entity_id"
+        )
+
+    source = provided[0]
+    if source == "image":
+        return _normalize_image_base64(call.data["image"])
+    if source == "image_path":
+        return await _image_path_to_base64(hass, call.data["image_path"])
+    return await _camera_image_to_base64(hass, call.data["camera_entity_id"])
+
+
+def _normalize_image_base64(value: str) -> str:
+    """Accept plain base64 or a data URL and return normalized base64."""
+    image = value.strip()
+    if image.startswith("data:"):
+        if "," not in image:
+            raise ServiceValidationError("EverShelf: image data URL is malformed")
+        image = image.split(",", 1)[1]
+
+    image = "".join(image.split())
+    if not image:
+        raise ServiceValidationError("EverShelf: image is empty")
+
+    try:
+        decoded = base64.b64decode(image, validate=True)
+    except binascii.Error as err:
+        raise ServiceValidationError("EverShelf: image is not valid base64") from err
+    if not decoded:
+        raise ServiceValidationError("EverShelf: image is empty")
+
+    return base64.b64encode(decoded).decode("ascii")
+
+
+async def _image_path_to_base64(hass: HomeAssistant, image_path: str) -> str:
+    """Read an allowlisted image path from the HA host and encode it."""
+    path = Path(image_path)
+    if not path.is_absolute():
+        path = Path(hass.config.path(image_path))
+    path = path.resolve()
+
+    if not hass.config.is_allowed_path(str(path)):
+        raise ServiceValidationError(
+            f"EverShelf: image_path is not allowlisted by Home Assistant: {path}"
+        )
+    is_file = await hass.async_add_executor_job(path.is_file)
+    if not is_file:
+        raise ServiceValidationError(f"EverShelf: image_path does not exist: {path}")
+
+    data = await hass.async_add_executor_job(path.read_bytes)
+    if not data:
+        raise ServiceValidationError(f"EverShelf: image_path is empty: {path}")
+
+    return base64.b64encode(data).decode("ascii")
+
+
+async def _camera_image_to_base64(hass: HomeAssistant, camera_entity_id: str) -> str:
+    """Capture the current image from a HA camera entity and encode it."""
+    from homeassistant.components import camera
+
+    try:
+        image = await camera.async_get_image(hass, camera_entity_id, timeout=10)
+    except (HomeAssistantError, TimeoutError) as err:
+        raise ServiceValidationError(
+            f"EverShelf: could not capture camera image from {camera_entity_id}: {err}"
+        ) from err
+
+    content = image if isinstance(image, bytes) else getattr(image, "content", b"")
+    if not content:
+        raise ServiceValidationError(
+            f"EverShelf: camera returned no image data: {camera_entity_id}"
+        )
+
+    return base64.b64encode(content).decode("ascii")

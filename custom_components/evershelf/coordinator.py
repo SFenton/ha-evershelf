@@ -247,6 +247,28 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.error("EverShelf %s error: %s", action, err)
             return False
 
+    async def _post_json(
+        self,
+        action: str,
+        payload: dict[str, Any],
+        timeout: int = 15,
+    ) -> dict[str, Any] | None:
+        """POST request returning parsed JSON or None on error."""
+        try:
+            async with self._session().post(
+                f"{self.url}/api/index.php",
+                params=self._params({"action": action}),
+                headers=self._headers(json_body=True),
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=timeout),
+            ) as resp:
+                if resp.status == 200:
+                    return await resp.json(content_type=None)
+                _LOGGER.warning("EverShelf %s returned HTTP %s", action, resp.status)
+        except aiohttp.ClientError as err:
+            _LOGGER.error("EverShelf %s error: %s", action, err)
+        return None
+
     async def _get_json(self, action: str, params: dict | None = None, timeout: int = 15) -> dict[str, Any] | None:
         """GET request returning parsed JSON or None on error."""
         try:
@@ -296,6 +318,14 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "resolve_barcode",
             {"barcode": barcode},
             timeout=45,
+        )
+
+    async def async_read_expiry_image(self, image_base64: str) -> dict[str, Any] | None:
+        """Read an expiry date from a base64-encoded image via EverShelf."""
+        return await self._post_json(
+            "gemini_expiry",
+            {"image": image_base64},
+            timeout=60,
         )
 
     async def async_get_calendar_events(self) -> list[dict[str, Any]]:
