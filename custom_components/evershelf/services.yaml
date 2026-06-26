@@ -158,7 +158,7 @@ read_expiry_image:
 
 add_scanned_item:
   name: Add Scanned Item
-  description: Save a scanned product if needed and add it to EverShelf inventory.
+  description: Save a scanned product if needed and add it to EverShelf inventory. Matching unopened inventory batches merge only when product, location, expiry date, and sealed state match.
   fields:
     product_id:
       name: Product ID
@@ -202,7 +202,7 @@ add_scanned_item:
         text:
     quantity:
       name: Quantity
-      description: Quantity to add to inventory.
+      description: Quantity to add to the matching inventory batch.
       required: false
       default: 1
       selector:
@@ -225,7 +225,7 @@ add_scanned_item:
             - altro
     expiry_date:
       name: Expiry date
-      description: Expiration date in YYYY-MM-DD format.
+      description: Expiration date in YYYY-MM-DD format. Different dates create separate unopened inventory batches.
       required: false
       example: "2026-06-30"
       selector:

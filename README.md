@@ -238,7 +238,7 @@ Example response:
 
 ### `evershelf.add_scanned_item`
 
-Save a scanned product if needed, then add it to EverShelf inventory. Use `return_response: true` from Developer Tools or a `response_variable` in automations/scripts to read the product and inventory API responses.
+Save a scanned product if needed, then add it to EverShelf inventory. EverShelf merges into an unopened inventory row only when the product, location, expiry date, and sealed state match; a fresher package with a different expiry date becomes a separate row. Use `return_response: true` from Developer Tools or a `response_variable` in automations/scripts to read the product and inventory API responses.
 
 ```yaml
 service: evershelf.add_scanned_item

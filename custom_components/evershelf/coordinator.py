@@ -338,11 +338,11 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return await self._post_json("product_save", payload, timeout=30)
 
     async def async_add_inventory(self, payload: dict[str, Any]) -> dict[str, Any] | None:
-        """Add quantity to EverShelf inventory and return the API response."""
+        """Add quantity to an EverShelf inventory expiry batch and return the API response."""
         return await self._post_json("inventory_add", payload, timeout=30)
 
     async def async_add_scanned_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
-        """Save a scanned product when needed, then add it to inventory."""
+        """Save a scanned product when needed, then add it to a matching inventory batch."""
         product_id = item.get("product_id")
         product_response: dict[str, Any] | None = None
 
