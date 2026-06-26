@@ -80,6 +80,32 @@ clear_expired:
   name: Clear Expired
   description: Remove expired inventory rows with zero stock from EverShelf.
 
+list_inventory:
+  name: List Inventory
+  description: Return current EverShelf inventory rows, optionally filtered by location.
+  fields:
+    location:
+      name: Location
+      description: Optional inventory location to return.
+      required: false
+      selector:
+        select:
+          options:
+            - label: Pantry
+              value: dispensa
+            - label: Fridge
+              value: frigo
+            - label: Freezer
+              value: freezer
+            - label: Other
+              value: altro
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 resolve_barcode:
   name: Resolve Barcode
   description: Resolve a scanned barcode through EverShelf and return matching product data.

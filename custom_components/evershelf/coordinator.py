@@ -312,6 +312,11 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Remove expired zero-stock inventory rows."""
         return await self._get_json("ha_clear_expired")
 
+    async def async_list_inventory(self, location: str = "") -> dict[str, Any] | None:
+        """Return EverShelf inventory rows, optionally filtered by location."""
+        params = {"location": location} if location else None
+        return await self._get_json("inventory_list", params)
+
     async def async_resolve_barcode(self, barcode: str) -> dict[str, Any] | None:
         """Resolve a barcode through EverShelf's local DB and external lookup chain."""
         return await self._get_json(

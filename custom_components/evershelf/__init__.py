@@ -35,6 +35,8 @@ PLATFORMS: list[Platform] = [
     Platform.TEXT,
 ]
 
+_INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "altro")
+
 _ADD_TO_SHOPPING_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
@@ -48,6 +50,13 @@ _MARK_USED_SCHEMA = vol.Schema(
         vol.Required("name"): cv.string,
         vol.Required("quantity"): vol.All(vol.Coerce(float), vol.Range(min=0.001)),
         vol.Optional("unit"): cv.string,
+    }
+)
+
+_LIST_INVENTORY_SCHEMA = vol.Schema(
+    {
+        vol.Optional("location", default=""): vol.Any("", vol.In(_INVENTORY_LOCATIONS)),
+        vol.Optional("config_entry_id"): cv.string,
     }
 )
 
@@ -66,8 +75,6 @@ _READ_EXPIRY_IMAGE_SCHEMA = vol.Schema(
         vol.Optional("config_entry_id"): cv.string,
     }
 )
-
-_INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "altro")
 
 _ADD_SCANNED_ITEM_SCHEMA = vol.Schema(
     {
@@ -170,6 +177,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await coord.async_clear_expired()
             await coord.async_request_refresh()
 
+        async def _handle_list_inventory(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            result = await coord.async_list_inventory(call.data.get("location", ""))
+            if result is None:
+                raise ServiceValidationError("EverShelf: inventory list failed")
+            return result
+
         async def _handle_resolve_barcode(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
             barcode = call.data["barcode"].strip()
@@ -220,6 +234,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.services.async_register(DOMAIN, "clear_expired", _handle_clear_expired)
         hass.services.async_register(
             DOMAIN,
+            "list_inventory",
+            _handle_list_inventory,
+            schema=_LIST_INVENTORY_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "resolve_barcode",
             _handle_resolve_barcode,
             schema=_RESOLVE_BARCODE_SCHEMA,
@@ -257,6 +278,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "suggest_recipe",
             "refresh_prices",
             "clear_expired",
+            "list_inventory",
             "resolve_barcode",
             "read_expiry_image",
             "add_scanned_item",

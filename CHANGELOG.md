@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.7] - 2026-06-25
+
+### Added
+- `evershelf.list_inventory` response-capable service for dashboard frontends. It returns current inventory rows and supports optional location filtering for Pantry, Fridge, Freezer, and Other views.
+
+---
+
 ## [1.2.6] - 2026-06-25
 
 ### Added
