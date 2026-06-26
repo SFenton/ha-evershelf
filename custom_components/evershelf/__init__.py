@@ -35,7 +35,7 @@ PLATFORMS: list[Platform] = [
     Platform.TEXT,
 ]
 
-_INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "altro")
+_INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "spice_rack", "cabinet", "altro")
 
 _ADD_TO_SHOPPING_SCHEMA = vol.Schema(
     {

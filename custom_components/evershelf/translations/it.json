@@ -105,6 +105,12 @@
       "items_freezer": {
         "name": "Articoli nel Freezer"
       },
+      "items_spice_rack": {
+        "name": "Articoli nelle Spezie"
+      },
+      "items_cabinet": {
+        "name": "Articoli nella Credenza"
+      },
       "low_stock_items": {
         "name": "Articoli in Esaurimento"
       },
@@ -224,7 +230,7 @@
       "fields": {
         "location": {
           "name": "Posizione",
-          "description": "Posizione della dispensa (es. frigo, freezer). Vuoto per tutte."
+          "description": "Posizione della dispensa (es. frigo, freezer, spice_rack, cabinet). Vuoto per tutte."
         }
       }
     },

@@ -105,6 +105,12 @@
       "items_freezer": {
         "name": "Artikel im Tiefkühlschrank"
       },
+      "items_spice_rack": {
+        "name": "Artikel im Gewürzregal"
+      },
+      "items_cabinet": {
+        "name": "Artikel im Schrank"
+      },
       "low_stock_items": {
         "name": "Artikel mit niedrigem Bestand"
       },
@@ -224,7 +230,7 @@
       "fields": {
         "location": {
           "name": "Standort",
-          "description": "Vorratsort (z. B. frigo, freezer). Leer für alle."
+          "description": "Vorratsort (z. B. frigo, freezer, spice_rack, cabinet). Leer für alle."
         }
       }
     },

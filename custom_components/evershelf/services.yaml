@@ -66,7 +66,7 @@ suggest_recipe:
   fields:
     location:
       name: Location
-      description: Pantry location to focus on (e.g. frigo, freezer). Leave empty for all locations.
+      description: Pantry location to focus on (e.g. frigo, freezer, spice_rack, cabinet). Leave empty for all locations.
       required: false
       example: "frigo"
       selector:
@@ -97,6 +97,10 @@ list_inventory:
               value: frigo
             - label: Freezer
               value: freezer
+            - label: Spice Rack
+              value: spice_rack
+            - label: Cabinet
+              value: cabinet
             - label: Other
               value: altro
     config_entry_id:
@@ -222,6 +226,8 @@ add_scanned_item:
             - dispensa
             - frigo
             - freezer
+            - spice_rack
+            - cabinet
             - altro
     expiry_date:
       name: Expiry date

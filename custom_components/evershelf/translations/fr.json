@@ -105,6 +105,12 @@
       "items_freezer": {
         "name": "Articles dans le congélateur"
       },
+      "items_spice_rack": {
+        "name": "Articles sur l'étagère à épices"
+      },
+      "items_cabinet": {
+        "name": "Articles dans le placard"
+      },
       "low_stock_items": {
         "name": "Articles en rupture"
       },
@@ -224,7 +230,7 @@
       "fields": {
         "location": {
           "name": "Emplacement",
-          "description": "Emplacement du garde-manger (ex. frigo, freezer). Vide pour tous."
+          "description": "Emplacement du garde-manger (ex. frigo, freezer, spice_rack, cabinet). Vide pour tous."
         }
       }
     },

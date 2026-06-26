@@ -126,6 +126,22 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         data_key="items_freezer",
     ),
+    EverShelfSensorDescription(
+        key="items_spice_rack",
+        translation_key="items_spice_rack",
+        icon="mdi:shaker-outline",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="items_spice_rack",
+    ),
+    EverShelfSensorDescription(
+        key="items_cabinet",
+        translation_key="items_cabinet",
+        icon="mdi:cupboard",
+        native_unit_of_measurement="items",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="items_cabinet",
+    ),
     # ── Stock ─────────────────────────────────────────────────────────────────
     EverShelfSensorDescription(
         key="low_stock_items",

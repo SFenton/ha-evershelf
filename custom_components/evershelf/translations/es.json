@@ -105,6 +105,12 @@
       "items_freezer": {
         "name": "Artículos en el congelador"
       },
+      "items_spice_rack": {
+        "name": "Artículos en el especiero"
+      },
+      "items_cabinet": {
+        "name": "Artículos en el armario"
+      },
       "low_stock_items": {
         "name": "Artículos con poco stock"
       },
@@ -224,7 +230,7 @@
       "fields": {
         "location": {
           "name": "Ubicación",
-          "description": "Ubicación de la despensa (p. ej. frigo, freezer). Vacío para todas."
+          "description": "Ubicación de la despensa (p. ej. frigo, freezer, spice_rack, cabinet). Vacío para todas."
         }
       }
     },

@@ -105,6 +105,12 @@
       "items_freezer": {
         "name": "Items in Freezer"
       },
+      "items_spice_rack": {
+        "name": "Items in Spice Rack"
+      },
+      "items_cabinet": {
+        "name": "Items in Cabinet"
+      },
       "low_stock_items": {
         "name": "Low Stock Items"
       },
@@ -224,7 +230,7 @@
       "fields": {
         "location": {
           "name": "Location",
-          "description": "Optional pantry location to focus on (e.g. frigo, freezer). Leave empty for all."
+          "description": "Optional pantry location to focus on (e.g. frigo, freezer, spice_rack, cabinet). Leave empty for all."
         }
       }
     },

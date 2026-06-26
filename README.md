@@ -51,7 +51,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 | Category | What you get |
 |---|---|
-| **16 Sensors** | Expiry counts, stock levels, location breakdown, shopping total, AI usage, last backup, days to next expiry |
+| **18 Sensors** | Expiry counts, stock levels, location breakdown, shopping total, AI usage, last backup, days to next expiry |
 | **6 Binary Sensors** | Expired items, expiring items, expiring today, shopping list active, price tracking, backup overdue, Bring! connected |
 | **5 Buttons** | Refresh, Refresh Prices, Suggest Recipe (AI), Sync Smart Shopping, Clear Expired |
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
@@ -66,7 +66,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 ## Entities
 
-### Sensors (16)
+### Sensors (18)
 
 | Entity ID | Name | Unit | Notes |
 |---|---|---|---|
@@ -81,6 +81,8 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | `sensor.evershelf_items_dispensa` | Items in Pantry | items | Stock count for the pantry location |
 | `sensor.evershelf_items_frigo` | Items in Fridge | items | Stock count for the fridge location |
 | `sensor.evershelf_items_freezer` | Items in Freezer | items | Stock count for the freezer location |
+| `sensor.evershelf_items_spice_rack` | Items in Spice Rack | items | Stock count for the spice rack location |
+| `sensor.evershelf_items_cabinet` | Items in Cabinet | items | Stock count for the cabinet location |
 | `sensor.evershelf_low_stock_items` | Low Stock Items | items | Items below their reorder threshold |
 | `sensor.evershelf_zero_stock_items` | Out of Stock Items | items | Items with quantity = 0 |
 | `sensor.evershelf_ai_calls_month` | AI Calls This Month | calls | Gemini API calls used in the current billing month |
@@ -173,7 +175,7 @@ Ask EverShelf AI for a recipe using the items expiring soonest. The result is de
 ```yaml
 service: evershelf.suggest_recipe
 data:
-  location: "frigo"   # optional — focus on fridge, freezer, or any location name
+  location: "frigo"   # optional — focus on fridge, freezer, spice_rack, cabinet, or any location name
 ```
 
 ### `evershelf.refresh_prices`
