@@ -60,6 +60,13 @@ _LIST_INVENTORY_SCHEMA = vol.Schema(
     }
 )
 
+_DELETE_INVENTORY_SCHEMA = vol.Schema(
+    {
+        vol.Required("inventory_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
 _RESOLVE_BARCODE_SCHEMA = vol.Schema(
     {
         vol.Required("barcode"): cv.string,
@@ -184,6 +191,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise ServiceValidationError("EverShelf: inventory list failed")
             return result
 
+        async def _handle_delete_inventory(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            result = await coord.async_delete_inventory(int(call.data["inventory_id"]))
+            if not result or result.get("success") is not True:
+                message = (
+                    result.get("error")
+                    if isinstance(result, dict)
+                    else "inventory delete failed"
+                )
+                raise ServiceValidationError(f"EverShelf: {message or 'inventory delete failed'}")
+            await coord.async_request_refresh()
+            return result
+
         async def _handle_resolve_barcode(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
             barcode = call.data["barcode"].strip()
@@ -241,6 +261,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(
             DOMAIN,
+            "delete_inventory",
+            _handle_delete_inventory,
+            schema=_DELETE_INVENTORY_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "resolve_barcode",
             _handle_resolve_barcode,
             schema=_RESOLVE_BARCODE_SCHEMA,
@@ -279,6 +306,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "refresh_prices",
             "clear_expired",
             "list_inventory",
+            "delete_inventory",
             "resolve_barcode",
             "read_expiry_image",
             "add_scanned_item",

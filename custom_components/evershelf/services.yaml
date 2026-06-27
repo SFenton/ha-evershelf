@@ -110,6 +110,25 @@ list_inventory:
       selector:
         text:
 
+delete_inventory:
+  name: Delete Inventory Row
+  description: Delete a specific EverShelf inventory row by inventory ID.
+  fields:
+    inventory_id:
+      name: Inventory ID
+      description: EverShelf inventory row ID to delete.
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 resolve_barcode:
   name: Resolve Barcode
   description: Resolve a scanned barcode through EverShelf and return matching product data.

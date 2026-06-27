@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.11] - 2026-06-26
+
+### Added
+- `evershelf.delete_inventory` response-capable service for deleting a specific EverShelf inventory row by inventory ID.
+
+---
+
 ## [1.2.10] - 2026-06-26
 
 ### Added

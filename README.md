@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **9 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
+| **11 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -195,6 +195,16 @@ Remove expired inventory rows whose quantity is zero.
 
 ```yaml
 service: evershelf.clear_expired
+```
+
+### `evershelf.delete_inventory`
+
+Delete a specific EverShelf inventory row by inventory ID.
+
+```yaml
+service: evershelf.delete_inventory
+data:
+  inventory_id: 123
 ```
 
 ### `evershelf.resolve_barcode`
