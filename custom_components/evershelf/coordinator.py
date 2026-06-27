@@ -321,6 +321,22 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Delete an EverShelf inventory row by inventory ID."""
         return await self._post_json("inventory_delete", {"id": inventory_id}, timeout=30)
 
+    async def async_delete_inventory_item(self, inventory_id: int) -> dict[str, Any] | None:
+        """Delete one item from an EverShelf inventory row."""
+        return await self._post_json("inventory_delete_one", {"id": inventory_id}, timeout=30)
+
+    async def async_update_inventory_item(
+        self,
+        inventory_id: int,
+        expiry_date: str,
+    ) -> dict[str, Any] | None:
+        """Update one item from an EverShelf inventory row, splitting the row if needed."""
+        return await self._post_json(
+            "inventory_update_one",
+            {"id": inventory_id, "expiry_date": expiry_date},
+            timeout=30,
+        )
+
     async def async_resolve_barcode(self, barcode: str) -> dict[str, Any] | None:
         """Resolve a barcode through EverShelf's local DB and external lookup chain."""
         return await self._get_json(

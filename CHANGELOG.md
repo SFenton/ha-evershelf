@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.12] - 2026-06-26
+
+### Added
+- `evershelf.delete_inventory_item` service for deleting one item from an inventory row, decrementing rows with quantity greater than 1.
+- `evershelf.update_inventory_item` service for updating one item from an inventory row, splitting rows with quantity greater than 1 when needed.
+
+---
+
 ## [1.2.11] - 2026-06-26
 
 ### Added

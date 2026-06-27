@@ -129,6 +129,50 @@ delete_inventory:
       selector:
         text:
 
+delete_inventory_item:
+  name: Delete Inventory Item
+  description: Delete one item from a specific EverShelf inventory row. Rows with quantity greater than 1 are decremented by 1.
+  fields:
+    inventory_id:
+      name: Inventory ID
+      description: EverShelf inventory row ID to delete one item from.
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+update_inventory_item:
+  name: Update Inventory Item
+  description: Update one item from a specific EverShelf inventory row, splitting a quantity greater than 1 into a separate row when needed.
+  fields:
+    inventory_id:
+      name: Inventory ID
+      description: EverShelf inventory row ID to update one item from.
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    expiry_date:
+      name: Expiry date
+      description: Expiry date for this one item in YYYY-MM-DD format. Use an empty string to clear the date.
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 resolve_barcode:
   name: Resolve Barcode
   description: Resolve a scanned barcode through EverShelf and return matching product data.

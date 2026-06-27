@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **11 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
+| **13 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `delete_inventory_item`, `update_inventory_item`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -205,6 +205,27 @@ Delete a specific EverShelf inventory row by inventory ID.
 service: evershelf.delete_inventory
 data:
   inventory_id: 123
+```
+
+### `evershelf.delete_inventory_item`
+
+Delete one item from a specific EverShelf inventory row. If the row quantity is greater than 1, EverShelf decrements it by 1 instead of deleting the row.
+
+```yaml
+service: evershelf.delete_inventory_item
+data:
+  inventory_id: 123
+```
+
+### `evershelf.update_inventory_item`
+
+Update one item from a specific EverShelf inventory row. If the row quantity is greater than 1, EverShelf splits one item into a separate row with the new expiry date.
+
+```yaml
+service: evershelf.update_inventory_item
+data:
+  inventory_id: 123
+  expiry_date: "2026-09-30"
 ```
 
 ### `evershelf.resolve_barcode`

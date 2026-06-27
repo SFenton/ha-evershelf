@@ -67,6 +67,14 @@ _DELETE_INVENTORY_SCHEMA = vol.Schema(
     }
 )
 
+_UPDATE_INVENTORY_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required("inventory_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Required("expiry_date"): cv.string,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
 _RESOLVE_BARCODE_SCHEMA = vol.Schema(
     {
         vol.Required("barcode"): cv.string,
@@ -204,6 +212,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             await coord.async_request_refresh()
             return result
 
+        async def _handle_delete_inventory_item(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            result = await coord.async_delete_inventory_item(int(call.data["inventory_id"]))
+            if not result or result.get("success") is not True:
+                message = (
+                    result.get("error")
+                    if isinstance(result, dict)
+                    else "inventory item delete failed"
+                )
+                raise ServiceValidationError(f"EverShelf: {message or 'inventory item delete failed'}")
+            await coord.async_request_refresh()
+            return result
+
+        async def _handle_update_inventory_item(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            result = await coord.async_update_inventory_item(
+                int(call.data["inventory_id"]),
+                call.data["expiry_date"],
+            )
+            if not result or result.get("success") is not True:
+                message = (
+                    result.get("error")
+                    if isinstance(result, dict)
+                    else "inventory item update failed"
+                )
+                raise ServiceValidationError(f"EverShelf: {message or 'inventory item update failed'}")
+            await coord.async_request_refresh()
+            return result
+
         async def _handle_resolve_barcode(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
             barcode = call.data["barcode"].strip()
@@ -268,6 +305,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(
             DOMAIN,
+            "delete_inventory_item",
+            _handle_delete_inventory_item,
+            schema=_DELETE_INVENTORY_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "update_inventory_item",
+            _handle_update_inventory_item,
+            schema=_UPDATE_INVENTORY_ITEM_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "resolve_barcode",
             _handle_resolve_barcode,
             schema=_RESOLVE_BARCODE_SCHEMA,
@@ -307,6 +358,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "clear_expired",
             "list_inventory",
             "delete_inventory",
+            "delete_inventory_item",
+            "update_inventory_item",
             "resolve_barcode",
             "read_expiry_image",
             "add_scanned_item",
