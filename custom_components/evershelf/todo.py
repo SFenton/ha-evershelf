@@ -62,14 +62,14 @@ class EverShelfShoppingList(CoordinatorEntity[EverShelfCoordinator], TodoListEnt
                 uid=str(item.get("id") or item.get("name", "")),
                 summary=item.get("name", ""),
                 status=TodoItemStatus.NEEDS_ACTION,
-                description=item.get("note") or None,
+                description=_shopping_item_description(item),
             )
             for item in items
         ]
 
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add a new item to the EverShelf shopping list."""
-        await self.coordinator.async_add_to_shopping(item.summary, None, None)
+        await self.coordinator.async_add_to_shopping(item.summary, 1, None)
         await self.coordinator.async_request_refresh()
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
@@ -83,3 +83,21 @@ class EverShelfShoppingList(CoordinatorEntity[EverShelfCoordinator], TodoListEnt
         if item.status == TodoItemStatus.COMPLETE:
             await self.coordinator.async_remove_from_shopping(item.uid)
             await self.coordinator.async_request_refresh()
+
+
+def _shopping_item_description(item: dict[str, Any]) -> str | None:
+    """Return a Home Assistant todo description with quantity context."""
+    note = item.get("note") or ""
+    quantity = item.get("quantity")
+    parts: list[str] = []
+    if quantity is not None:
+        try:
+            value = float(quantity)
+        except (TypeError, ValueError):
+            value = 1
+        if value != 1:
+            label = str(int(value)) if value.is_integer() else f"{value:g}"
+            parts.append(f"Quantity: {label}")
+    if note:
+        parts.append(str(note))
+    return "\n".join(parts) or None

@@ -40,7 +40,7 @@ _INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "spice_rack", "cabinet",
 _ADD_TO_SHOPPING_SCHEMA = vol.Schema(
     {
         vol.Required("name"): cv.string,
-        vol.Optional("quantity"): vol.Coerce(float),
+        vol.Optional("quantity", default=1): vol.All(vol.Coerce(float), vol.Range(min=0.001)),
         vol.Optional("unit"): cv.string,
     }
 )

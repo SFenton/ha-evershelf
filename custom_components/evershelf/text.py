@@ -52,7 +52,7 @@ class EverShelfQuickAddText(TextEntity, RestoreEntity):
         name = value.strip()
         if not name:
             return
-        ok = await self._coordinator.async_add_to_shopping(name=name, quantity=None, unit=None)
+        ok = await self._coordinator.async_add_to_shopping(name=name, quantity=1, unit=None)
         if ok:
             _LOGGER.info("EverShelf quick-add: '%s' added to shopping list", name)
             await self._coordinator.async_request_refresh()

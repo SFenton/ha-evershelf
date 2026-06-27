@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.10] - 2026-06-26
+
+### Added
+- `evershelf.add_to_shopping` now sends a default quantity of `1` and supports incrementing an existing EverShelf cart row when a quantity is provided.
+- `todo.evershelf_shopping_list` displays quantity context returned by EverShelf for shopping-list items.
+
+---
+
 ## [1.2.7] - 2026-06-25
 
 ### Added

@@ -1,6 +1,6 @@
 add_to_shopping:
   name: Add to Shopping List
-  description: Add a product to the EverShelf shopping list.
+  description: Add a product to the EverShelf shopping list. If the item already exists, the quantity is increased by this amount.
   fields:
     name:
       name: Product name
@@ -16,7 +16,7 @@ add_to_shopping:
       example: 2
       selector:
         number:
-          min: 0
+          min: 0.001
           max: 9999
           step: 0.1
     unit:

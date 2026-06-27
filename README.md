@@ -116,6 +116,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 `todo.evershelf_shopping_list` — Native HA todo, bidirectional sync.
 
 - **Add** items from the HA interface → they appear in EverShelf (and Bring!, if connected)
+- Adding an existing item increases its EverShelf cart quantity when quantity support is available
 - **Delete** items → removed from EverShelf
 - **Check off** items → removed from the active shopping list
 
@@ -141,6 +142,8 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 ## Services
 
 ### `evershelf.add_to_shopping`
+
+Adds a product to the EverShelf shopping list. If the item already exists, `quantity` increases the cart quantity instead of creating a duplicate row.
 
 ```yaml
 service: evershelf.add_to_shopping
