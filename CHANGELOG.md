@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.13] - 2026-06-28
+
+### Added
+- `evershelf.list_inventory` now accepts `q` / `search` to use EverShelf's taxonomy-aware inventory search while preserving the existing response shape for dashboards.
+
+---
+
 ## [1.2.12] - 2026-06-26
 
 ### Added

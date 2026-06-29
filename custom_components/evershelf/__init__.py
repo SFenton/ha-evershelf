@@ -56,6 +56,8 @@ _MARK_USED_SCHEMA = vol.Schema(
 _LIST_INVENTORY_SCHEMA = vol.Schema(
     {
         vol.Optional("location", default=""): vol.Any("", vol.In(_INVENTORY_LOCATIONS)),
+        vol.Optional("q", default=""): cv.string,
+        vol.Optional("search", default=""): cv.string,
         vol.Optional("config_entry_id"): cv.string,
     }
 )
@@ -194,7 +196,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         async def _handle_list_inventory(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
-            result = await coord.async_list_inventory(call.data.get("location", ""))
+            result = await coord.async_list_inventory(
+                location=call.data.get("location", ""),
+                search=call.data.get("q") or call.data.get("search", ""),
+            )
             if result is None:
                 raise ServiceValidationError("EverShelf: inventory list failed")
             return result

@@ -82,7 +82,7 @@ clear_expired:
 
 list_inventory:
   name: List Inventory
-  description: Return current EverShelf inventory rows, optionally filtered by location.
+  description: Return current EverShelf inventory rows, optionally filtered by location and taxonomy-aware search.
   fields:
     location:
       name: Location
@@ -103,6 +103,20 @@ list_inventory:
               value: cabinet
             - label: Other
               value: altro
+    q:
+      name: Search
+      description: Optional taxonomy-aware search text. Matches product names, brands, categories, and EverShelf canonical ingredient taxonomy.
+      required: false
+      example: "fried tenders"
+      selector:
+        text:
+    search:
+      name: Search alias
+      description: Alias for q, useful for clients that prefer a more descriptive field name.
+      required: false
+      example: "poultry"
+      selector:
+        text:
     config_entry_id:
       name: Config entry
       description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.

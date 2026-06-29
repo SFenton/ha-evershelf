@@ -312,8 +312,28 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Remove expired zero-stock inventory rows."""
         return await self._get_json("ha_clear_expired")
 
-    async def async_list_inventory(self, location: str = "") -> dict[str, Any] | None:
-        """Return EverShelf inventory rows, optionally filtered by location."""
+    async def async_list_inventory(
+        self,
+        location: str = "",
+        search: str = "",
+    ) -> dict[str, Any] | None:
+        """Return EverShelf inventory rows, optionally filtered by location/search."""
+        query = search.strip()
+        if query:
+            params: dict[str, Any] = {"sensor": "product", "name": query}
+            if location:
+                params["location"] = location
+            data = await self._get_json("ha_sensor", params)
+            if data is None:
+                return None
+            return {
+                "inventory": data.get("items", []),
+                "count": data.get("state", 0),
+                "search": query,
+                "location": location,
+                "source": "ha_sensor_product_search",
+            }
+
         params = {"location": location} if location else None
         return await self._get_json("inventory_list", params)
 
