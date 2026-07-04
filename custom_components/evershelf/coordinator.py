@@ -337,9 +337,16 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         params = {"location": location} if location else None
         return await self._get_json("inventory_list", params)
 
-    async def async_delete_inventory(self, inventory_id: int) -> dict[str, Any] | None:
-        """Delete an EverShelf inventory row by inventory ID."""
-        return await self._post_json("inventory_delete", {"id": inventory_id}, timeout=30)
+    async def async_delete_inventory(
+        self,
+        inventory_id: int,
+        quantity: float | None = None,
+    ) -> dict[str, Any] | None:
+        """Delete all or part of an EverShelf inventory row by inventory ID."""
+        payload: dict[str, Any] = {"id": inventory_id}
+        if quantity is not None:
+            payload["quantity"] = quantity
+        return await self._post_json("inventory_delete", payload, timeout=30)
 
     async def async_delete_inventory_item(self, inventory_id: int) -> dict[str, Any] | None:
         """Delete one item from an EverShelf inventory row."""

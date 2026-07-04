@@ -126,12 +126,20 @@ list_inventory:
 
 delete_inventory:
   name: Delete Inventory Row
-  description: Delete a specific EverShelf inventory row by inventory ID.
+  description: Delete all or part of a specific EverShelf inventory row by inventory ID.
   fields:
     inventory_id:
       name: Inventory ID
       description: EverShelf inventory row ID to delete.
       required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    quantity:
+      name: Quantity
+      description: Optional quantity to delete. Omit to delete the entire row.
+      required: false
       selector:
         number:
           min: 1

@@ -65,6 +65,14 @@ _LIST_INVENTORY_SCHEMA = vol.Schema(
 _DELETE_INVENTORY_SCHEMA = vol.Schema(
     {
         vol.Required("inventory_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
+        vol.Optional("quantity"): vol.All(vol.Coerce(float), vol.Range(min=1)),
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_DELETE_INVENTORY_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required("inventory_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Optional("config_entry_id"): cv.string,
     }
 )
@@ -206,7 +214,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         async def _handle_delete_inventory(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
-            result = await coord.async_delete_inventory(int(call.data["inventory_id"]))
+            result = await coord.async_delete_inventory(
+                int(call.data["inventory_id"]),
+                call.data.get("quantity"),
+            )
             if not result or result.get("success") is not True:
                 message = (
                     result.get("error")
@@ -312,7 +323,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             DOMAIN,
             "delete_inventory_item",
             _handle_delete_inventory_item,
-            schema=_DELETE_INVENTORY_SCHEMA,
+            schema=_DELETE_INVENTORY_ITEM_SCHEMA,
             supports_response=SupportsResponse.OPTIONAL,
         )
         hass.services.async_register(
