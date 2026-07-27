@@ -388,10 +388,19 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Add quantity to an EverShelf inventory expiry batch and return the API response."""
         return await self._post_json("inventory_add", payload, timeout=30)
 
+    async def async_set_prepared_food(self, product_id: int, prepared: bool) -> dict[str, Any] | None:
+        """Flag an existing product as prepared food and re-queue its taxonomy grouping."""
+        return await self._post_json(
+            "product_set_prepared_food",
+            {"id": int(product_id), "prepared_food": bool(prepared)},
+            timeout=30,
+        )
+
     async def async_add_scanned_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
         """Save a scanned product when needed, then add it to a matching inventory batch."""
         product_id = item.get("product_id")
         product_response: dict[str, Any] | None = None
+        prepared_food = bool(item.get("prepared_food"))
 
         if product_id is None:
             product_payload: dict[str, Any] = {}
@@ -415,6 +424,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 value = item.get(key)
                 if value is not None:
                     product_payload[key] = value
+            if prepared_food:
+                product_payload["prepared_food"] = True
             if isinstance(item.get("nutriments"), dict):
                 product_payload["nutriments"] = item["nutriments"]
 
@@ -435,6 +446,10 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "product": product_response,
                 }
             product_id = product_response["id"]
+        elif prepared_food:
+            # Existing product: product_save rewrites every column from its input, so the
+            # flag is set through the dedicated endpoint instead of a partial save.
+            await self.async_set_prepared_food(int(product_id), True)
 
         inventory_payload: dict[str, Any] = {
             "product_id": int(product_id),

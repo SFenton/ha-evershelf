@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.14] - 2026-07-27
+
+### Added
+- `evershelf.add_scanned_item` accepts `prepared_food` to mark finished dishes that should not be classified by ingredient. EverShelf groups them under the existing prepared meal taxonomy term. Works for both newly created products and existing ones.
+
 ## [1.2.13] - 2026-06-28
 
 ### Added

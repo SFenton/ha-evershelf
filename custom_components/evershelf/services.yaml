@@ -321,6 +321,13 @@ add_scanned_item:
       example: "2026-06-30"
       selector:
         date:
+    prepared_food:
+      name: Prepared food item
+      description: Marks this as a prepared food item that does not need ingredient classification. It is grouped under the existing prepared meal taxonomy term instead of being classified.
+      required: false
+      default: false
+      selector:
+        boolean:
     unit:
       name: Unit
       description: Product unit such as pz, kg, or l.

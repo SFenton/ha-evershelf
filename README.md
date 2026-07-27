@@ -287,6 +287,17 @@ data:
   expiry_user_set: true
 ```
 
+Set `prepared_food: true` for a finished dish that should not be classified by ingredient. EverShelf groups it under the existing prepared meal taxonomy term instead of deriving one, which also skips the AI taxonomy review.
+
+```yaml
+service: evershelf.add_scanned_item
+data:
+  name: "Leftover lasagna"
+  quantity: 1
+  location: "frigo"
+  prepared_food: true
+```
+
 Example response:
 
 ```json
