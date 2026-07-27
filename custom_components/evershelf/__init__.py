@@ -123,6 +123,7 @@ _ADD_SCANNED_ITEM_SCHEMA = vol.Schema(
         vol.Optional("expiry_date"): cv.string,
         vol.Optional("vacuum_sealed", default=False): cv.boolean,
         vol.Optional("expiry_user_set"): cv.boolean,
+        vol.Optional("prepared_food", default=False): cv.boolean,
         vol.Optional("config_entry_id"): cv.string,
     }
 )
