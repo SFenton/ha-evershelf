@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **13 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `delete_inventory_item`, `update_inventory_item`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
+| **14 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `delete_inventory_item`, `update_inventory_item`, `set_inventory_prepared_food`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |

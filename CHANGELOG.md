@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.15] - 2026-07-27
+
+### Added
+- `evershelf.set_inventory_prepared_food` marks some or all units of an inventory row as a prepared food item. Passing a quantity below the row quantity splits those units onto their own row, so part of a batch can be prepared while the rest is not.
+
 ## [1.2.14] - 2026-07-27
 
 ### Added
