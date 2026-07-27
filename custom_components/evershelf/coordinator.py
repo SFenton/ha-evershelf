@@ -396,6 +396,15 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             timeout=30,
         )
 
+    async def async_set_inventory_prepared_food(
+        self, inventory_id: int, prepared: bool, quantity: float | None = None
+    ) -> dict[str, Any] | None:
+        """Flag some or all units of an inventory row as prepared food."""
+        payload: dict[str, Any] = {"inventory_id": int(inventory_id), "prepared_food": bool(prepared)}
+        if quantity is not None:
+            payload["quantity"] = float(quantity)
+        return await self._post_json("inventory_set_prepared_food", payload, timeout=30)
+
     async def async_add_scanned_item(self, item: dict[str, Any]) -> dict[str, Any] | None:
         """Save a scanned product when needed, then add it to a matching inventory batch."""
         product_id = item.get("product_id")

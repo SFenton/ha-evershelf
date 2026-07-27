@@ -195,6 +195,40 @@ update_inventory_item:
       selector:
         text:
 
+set_inventory_prepared_food:
+  name: Set Inventory Prepared Food
+  description: Mark some or all units of an EverShelf inventory row as a prepared food item. Prepared items are grouped under the existing prepared meal taxonomy term instead of being classified by ingredient. Passing a quantity below the row quantity splits those units into their own row so the rest of the batch keeps its previous state.
+  fields:
+    inventory_id:
+      name: Inventory ID
+      description: EverShelf inventory row ID to update.
+      required: true
+      selector:
+        number:
+          min: 1
+          mode: box
+    prepared_food:
+      name: Prepared food
+      description: Whether the selected units are prepared food items.
+      required: true
+      selector:
+        boolean:
+    quantity:
+      name: Quantity
+      description: How many units to apply this to. Defaults to the whole row.
+      required: false
+      selector:
+        number:
+          min: 0.001
+          step: 0.001
+          mode: box
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 resolve_barcode:
   name: Resolve Barcode
   description: Resolve a scanned barcode through EverShelf and return matching product data.
