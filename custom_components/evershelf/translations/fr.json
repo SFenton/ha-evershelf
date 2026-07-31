@@ -241,6 +241,32 @@
     "clear_expired": {
       "name": "Effacer les expirés",
       "description": "Supprimer les lignes d'inventaire expirées avec quantité nulle."
+    },
+    "suggest_location": {
+      "name": "Suggérer un emplacement",
+      "description": "Renvoie l'emplacement précédent pour un code-barres exact ou un nom saisi manuellement, sinon utilise l'IA EverShelf.",
+      "fields": {
+        "name": {
+          "name": "Nom du produit",
+          "description": "Nom utilisé pour l'historique et la classification."
+        },
+        "mode": {
+          "name": "Mode de saisie",
+          "description": "Scan du code-barres ou nom saisi manuellement."
+        },
+        "barcode": {
+          "name": "Code-barres",
+          "description": "Code-barres scanné lorsque le mode est code-barres."
+        },
+        "category": {
+          "name": "Catégorie",
+          "description": "Catégorie facultative issue de la recherche du code-barres."
+        },
+        "config_entry_id": {
+          "name": "Entrée de configuration",
+          "description": "ID facultatif de l'entrée EverShelf si plusieurs instances sont configurées."
+        }
+      }
     }
   }
 }

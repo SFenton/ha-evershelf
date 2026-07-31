@@ -36,6 +36,7 @@ PLATFORMS: list[Platform] = [
 ]
 
 _INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "spice_rack", "cabinet", "altro")
+_LOCATION_SUGGESTION_MODES = ("barcode", "manual")
 
 _ADD_TO_SHOPPING_SCHEMA = vol.Schema(
     {
@@ -97,6 +98,16 @@ _SET_INVENTORY_PREPARED_FOOD_SCHEMA = vol.Schema(
 _RESOLVE_BARCODE_SCHEMA = vol.Schema(
     {
         vol.Required("barcode"): cv.string,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_SUGGEST_LOCATION_SCHEMA = vol.Schema(
+    {
+        vol.Required("name"): cv.string,
+        vol.Optional("mode", default="manual"): vol.In(_LOCATION_SUGGESTION_MODES),
+        vol.Optional("barcode"): cv.string,
+        vol.Optional("category"): cv.string,
         vol.Optional("config_entry_id"): cv.string,
     }
 )
@@ -294,6 +305,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise ServiceValidationError("EverShelf: barcode lookup failed")
             return result
 
+        async def _handle_suggest_location(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            name = call.data["name"].strip()
+            mode = call.data.get("mode", "manual")
+            barcode = call.data.get("barcode", "").strip()
+            if not name:
+                raise ServiceValidationError("EverShelf: product name is required")
+            if mode == "barcode" and not barcode:
+                raise ServiceValidationError(
+                    "EverShelf: barcode is required in barcode mode"
+                )
+            return await coord.async_suggest_location(
+                mode=mode,
+                name=name,
+                barcode=barcode,
+                category=call.data.get("category", "").strip(),
+            )
+
         async def _handle_read_expiry_image(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
             image_base64 = await _get_expiry_image_base64(hass, call)
@@ -376,6 +405,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(
             DOMAIN,
+            "suggest_location",
+            _handle_suggest_location,
+            schema=_SUGGEST_LOCATION_SCHEMA,
+            supports_response=SupportsResponse.OPTIONAL,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "read_expiry_image",
             _handle_read_expiry_image,
             schema=_READ_EXPIRY_IMAGE_SCHEMA,
@@ -412,6 +448,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "update_inventory_item",
             "set_inventory_prepared_food",
             "resolve_barcode",
+            "suggest_location",
             "read_expiry_image",
             "add_scanned_item",
         ):

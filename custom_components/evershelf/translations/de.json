@@ -241,6 +241,32 @@
     "clear_expired": {
       "name": "Abgelaufene löschen",
       "description": "Abgelaufene Inventareinträge mit Nullbestand entfernen."
+    },
+    "suggest_location": {
+      "name": "Lagerort vorschlagen",
+      "description": "Den vorherigen Lagerort für einen exakten Barcode oder manuell eingegebenen Produktnamen zurückgeben, andernfalls die EverShelf-KI verwenden.",
+      "fields": {
+        "name": {
+          "name": "Produktname",
+          "description": "Produktname für Verlauf und Klassifizierung."
+        },
+        "mode": {
+          "name": "Eingabemodus",
+          "description": "Barcode-Scan oder manuell eingegebener Name."
+        },
+        "barcode": {
+          "name": "Barcode",
+          "description": "Gescannter Barcode im Barcode-Modus."
+        },
+        "category": {
+          "name": "Kategorie",
+          "description": "Optionale Produktkategorie aus der Barcode-Suche."
+        },
+        "config_entry_id": {
+          "name": "Konfigurationseintrag",
+          "description": "Optionale EverShelf-Konfigurationseintrags-ID bei mehreren Instanzen."
+        }
+      }
     }
   }
 }

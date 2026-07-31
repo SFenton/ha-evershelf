@@ -241,6 +241,32 @@
     "clear_expired": {
       "name": "Limpiar caducados",
       "description": "Eliminar filas de inventario caducadas con cantidad cero."
+    },
+    "suggest_location": {
+      "name": "Sugerir ubicación de almacenamiento",
+      "description": "Devuelve la ubicación anterior para un código de barras exacto o un nombre introducido manualmente; en caso contrario usa la IA de EverShelf.",
+      "fields": {
+        "name": {
+          "name": "Nombre del producto",
+          "description": "Nombre utilizado para el historial y la clasificación."
+        },
+        "mode": {
+          "name": "Modo de entrada",
+          "description": "Escaneo de código de barras o nombre introducido manualmente."
+        },
+        "barcode": {
+          "name": "Código de barras",
+          "description": "Código escaneado cuando el modo es código de barras."
+        },
+        "category": {
+          "name": "Categoría",
+          "description": "Categoría opcional obtenida de la búsqueda del código."
+        },
+        "config_entry_id": {
+          "name": "Entrada de configuración",
+          "description": "ID opcional de la entrada de EverShelf cuando hay varias instancias."
+        }
+      }
     }
   }
 }

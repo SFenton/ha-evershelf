@@ -247,6 +247,49 @@ resolve_barcode:
       selector:
         text:
 
+suggest_location:
+  name: Suggest Storage Location
+  description: Return the previous storage location for an exact barcode or manually entered product name, otherwise use EverShelf's background AI classifier.
+  fields:
+    name:
+      name: Product name
+      description: Product name used for exact manual-name history and AI classification.
+      required: true
+      example: "Milk"
+      selector:
+        text:
+    mode:
+      name: Entry mode
+      description: Barcode mode checks barcode history before AI. Manual mode also checks exact case-insensitive name history.
+      required: false
+      default: manual
+      selector:
+        select:
+          options:
+            - label: Barcode scan
+              value: barcode
+            - label: Manual name
+              value: manual
+    barcode:
+      name: Barcode
+      description: Scanned barcode. Required when entry mode is barcode.
+      required: false
+      example: "3017620422003"
+      selector:
+        text:
+    category:
+      name: Category
+      description: Optional product category from barcode lookup to improve classification.
+      required: false
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 read_expiry_image:
   name: Read Expiry Image
   description: Send an expiry-label image to EverShelf OCR/Gemini and return the parsed expiry date.

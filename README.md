@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **14 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `delete_inventory_item`, `update_inventory_item`, `set_inventory_prepared_food`, `resolve_barcode`, `read_expiry_image`, `add_scanned_item` |
+| **15 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `delete_inventory_item`, `update_inventory_item`, `set_inventory_prepared_food`, `resolve_barcode`, `suggest_location`, `read_expiry_image`, `add_scanned_item` |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -248,6 +248,31 @@ Example response:
     "name": "Nutella",
     "brand": "Ferrero"
   }
+}
+```
+
+### `evershelf.suggest_location`
+
+Return the best storage location without applying dashboard page defaults. Exact
+barcode history wins first. In `manual` mode, an exact case-insensitive name
+match is checked next. Genuinely unseen products may return an AI suggestion or
+`unknown`.
+
+```yaml
+service: evershelf.suggest_location
+data:
+  mode: manual
+  name: "Milk"
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "location": "frigo",
+  "source": "history_name",
+  "confidence": 1
 }
 ```
 
