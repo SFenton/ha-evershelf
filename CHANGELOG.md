@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.16] - 2026-07-31
+
+### Added
+- `evershelf.suggest_location` exposes EverShelf's history-first storage-location suggestion API to dashboard frontends. It returns explicit `unknown` and unavailable responses without blocking item entry.
+- `evershelf.resolve_barcode` transparently passes through exact barcode-history location suggestions returned by EverShelf.
+
 ## [1.2.15] - 2026-07-27
 
 ### Added

@@ -242,6 +242,32 @@
       "name": "Clear Expired",
       "description": "Remove expired zero-stock inventory rows from EverShelf."
     },
+    "suggest_location": {
+      "name": "Suggest Storage Location",
+      "description": "Return the previous storage location for an exact barcode or manually entered product name, otherwise use EverShelf's background AI classifier.",
+      "fields": {
+        "name": {
+          "name": "Product name",
+          "description": "Product name used for history and classification."
+        },
+        "mode": {
+          "name": "Entry mode",
+          "description": "Barcode scan or manually entered name."
+        },
+        "barcode": {
+          "name": "Barcode",
+          "description": "Scanned barcode when entry mode is barcode."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Optional product category from barcode lookup."
+        },
+        "config_entry_id": {
+          "name": "Config entry",
+          "description": "Optional EverShelf config entry ID when multiple EverShelf instances are configured."
+        }
+      }
+    },
     "read_expiry_image": {
       "name": "Read Expiry Image",
       "description": "Send an expiry-label image to EverShelf OCR/Gemini and return the parsed expiry date.",

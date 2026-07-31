@@ -1,6 +1,7 @@
 """DataUpdateCoordinator for EverShelf."""
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -371,6 +372,52 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             {"barcode": barcode},
             timeout=45,
         )
+
+    async def async_suggest_location(
+        self,
+        *,
+        mode: str,
+        name: str,
+        barcode: str = "",
+        category: str = "",
+    ) -> dict[str, Any]:
+        """Return EverShelf's history-first storage-location suggestion."""
+        payload: dict[str, Any] = {"mode": mode, "name": name}
+        if barcode:
+            payload["barcode"] = barcode
+        if category:
+            payload["category"] = category
+
+        try:
+            async with self._session().post(
+                f"{self.url}/api/index.php",
+                params=self._params({"action": "location_suggestion"}),
+                headers=self._headers(json_body=True),
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=12),
+            ) as resp:
+                data = await resp.json(content_type=None)
+                if resp.status == 200:
+                    return data
+                _LOGGER.warning(
+                    "EverShelf location_suggestion returned HTTP %s",
+                    resp.status,
+                )
+                return {
+                    "success": False,
+                    "error_kind": "unavailable",
+                    "http_code": resp.status,
+                    "error": data.get("error", "location suggestion failed")
+                    if isinstance(data, dict)
+                    else "location suggestion failed",
+                }
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+            _LOGGER.error("EverShelf location_suggestion error: %s", err)
+            return {
+                "success": False,
+                "error_kind": "unavailable",
+                "error": str(err) or "location suggestion failed",
+            }
 
     async def async_read_expiry_image(self, image_base64: str) -> dict[str, Any] | None:
         """Read an expiry date from a base64-encoded image via EverShelf."""

@@ -241,6 +241,32 @@
     "clear_expired": {
       "name": "Elimina Scaduti",
       "description": "Rimuove le righe di inventario scadute con quantità zero."
+    },
+    "suggest_location": {
+      "name": "Suggerisci posizione",
+      "description": "Restituisce la posizione precedente per un codice a barre esatto o un nome inserito manualmente; altrimenti usa l'IA di EverShelf.",
+      "fields": {
+        "name": {
+          "name": "Nome prodotto",
+          "description": "Nome usato per cronologia e classificazione."
+        },
+        "mode": {
+          "name": "Modalità di inserimento",
+          "description": "Scansione del codice a barre o nome inserito manualmente."
+        },
+        "barcode": {
+          "name": "Codice a barre",
+          "description": "Codice scansionato quando la modalità è codice a barre."
+        },
+        "category": {
+          "name": "Categoria",
+          "description": "Categoria opzionale ottenuta dalla ricerca del codice a barre."
+        },
+        "config_entry_id": {
+          "name": "Voce di configurazione",
+          "description": "ID opzionale della voce EverShelf quando sono configurate più istanze."
+        }
+      }
     }
   }
 }
