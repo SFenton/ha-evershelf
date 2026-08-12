@@ -242,6 +242,55 @@
       "name": "Elimina Scaduti",
       "description": "Rimuove le righe di inventario scadute con quantità zero."
     },
+    "recipe_query": {
+      "name": "Cerca ricette",
+      "description": "Restituisce ricette compatte ordinate o il carosello fisso dei suggerimenti.",
+      "fields": {
+        "kind": {"name": "Tipo di ricerca", "description": "Sfoglia le ricette o restituisce i suggerimenti."},
+        "q": {"name": "Ricerca", "description": "Cerca nei titoli e negli ingredienti."},
+        "sort": {"name": "Ordinamento", "description": "Modalità di ordinamento dominante."},
+        "availability_weight": {"name": "Peso disponibilità", "description": "Forza del punteggio degli ingredienti disponibili."},
+        "expiry_weight": {"name": "Peso scadenza", "description": "Forza del punteggio degli ingredienti in scadenza."},
+        "minimum_coverage": {"name": "Copertura minima", "description": "Percentuale minima degli ingredienti richiesti disponibili."},
+        "expiring_within_days": {"name": "Scade entro", "description": "Solo ricette con alimenti in scadenza entro questi giorni."},
+        "source": {"name": "Fonte", "description": "Filtro opzionale del connettore ricette."},
+        "locale": {"name": "Impostazioni locali", "description": "Impostazioni locali opzionali delle ricette."},
+        "limit": {"name": "Dimensione pagina", "description": "Numero di schede ricetta."},
+        "cursor": {"name": "Cursore", "description": "Cursore opaco per la pagina successiva."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "ID opzionale della voce EverShelf."}
+      }
+    },
+    "recipe_hydration": {
+      "name": "Aggiorna ricerca ricette",
+      "description": "Accoda una ricerca Cookidoo idempotente o ne controlla lo stato.",
+      "fields": {
+        "query": {"name": "Ricerca", "description": "Testo da cercare nella fonte remota."},
+        "search_id": {"name": "ID ricerca", "description": "ID di una ricerca esistente da controllare."},
+        "source": {"name": "Fonte", "description": "Connettore remoto delle ricette."},
+        "locale": {"name": "Impostazioni locali", "description": "Impostazioni locali opzionali."},
+        "force": {"name": "Forza aggiornamento", "description": "Riaccoda una ricerca equivalente già completata."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "ID opzionale della voce EverShelf."}
+      }
+    },
+    "recipe_detail": {
+      "name": "Ottieni dettagli ricetta",
+      "description": "Restituisce la proiezione limitata dei dettagli di una ricetta EverShelf.",
+      "fields": {
+        "recipe_id": {"name": "ID ricetta", "description": "ID positivo della ricetta nel catalogo EverShelf."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "ID opzionale della voce EverShelf."}
+      }
+    },
+    "recipe_grocery_add": {
+      "name": "Aggiungi ingredienti ricetta",
+      "description": "Aggiunge a EverShelf gli ingredienti mancanti selezionati e copia quelli idonei in una lista attività di Home Assistant.",
+      "fields": {
+        "recipe_id": {"name": "ID ricetta", "description": "ID positivo della ricetta nel catalogo EverShelf."},
+        "selections": {"name": "Selezioni ingredienti", "description": "Da uno a 100 oggetti con chiave ingrediente e posizione facoltativa."},
+        "idempotency_key": {"name": "Chiave di idempotenza", "description": "Chiave stabile del comando client per questa selezione."},
+        "todo_entity_id": {"name": "Lista attività Home Assistant", "description": "Lista utente che riceve gli elementi idonei senza duplicati."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "Obbligatorio quando sono configurate più istanze EverShelf."}
+      }
+    },
     "suggest_location": {
       "name": "Suggerisci posizione",
       "description": "Restituisce la posizione precedente per un codice a barre esatto o un nome inserito manualmente; altrimenti usa l'IA di EverShelf.",

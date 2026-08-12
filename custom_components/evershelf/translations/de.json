@@ -242,6 +242,55 @@
       "name": "Abgelaufene löschen",
       "description": "Abgelaufene Inventareinträge mit Nullbestand entfernen."
     },
+    "recipe_query": {
+      "name": "Rezepte abfragen",
+      "description": "Kompakte bewertete Rezepte oder das feste Empfehlungskarussell zurückgeben.",
+      "fields": {
+        "kind": {"name": "Abfragetyp", "description": "Rezepte durchsuchen oder Empfehlungen zurückgeben."},
+        "q": {"name": "Suche", "description": "Rezepttitel und Zutaten durchsuchen."},
+        "sort": {"name": "Sortierung", "description": "Dominanter Bewertungsmodus."},
+        "availability_weight": {"name": "Verfügbarkeitsgewicht", "description": "Stärke der Bewertung verfügbarer Zutaten."},
+        "expiry_weight": {"name": "Ablaufgewicht", "description": "Stärke der Bewertung bald ablaufender Zutaten."},
+        "minimum_coverage": {"name": "Mindestabdeckung", "description": "Mindestanteil verfügbarer Pflichtzutaten."},
+        "expiring_within_days": {"name": "Läuft ab innerhalb", "description": "Nur Rezepte mit Lebensmitteln, die innerhalb dieser Tage ablaufen."},
+        "source": {"name": "Quelle", "description": "Optionaler Rezeptquellenfilter."},
+        "locale": {"name": "Gebietsschema", "description": "Optionales Rezeptgebietsschema."},
+        "limit": {"name": "Seitengröße", "description": "Anzahl zurückgegebener Rezeptkarten."},
+        "cursor": {"name": "Cursor", "description": "Undurchsichtiger Cursor für die nächste Seite."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Optionale EverShelf-Konfigurationseintrags-ID."}
+      }
+    },
+    "recipe_hydration": {
+      "name": "Rezeptsuche aktualisieren",
+      "description": "Eine idempotente Cookidoo-Suche einreihen oder ihren Status abrufen.",
+      "fields": {
+        "query": {"name": "Suche", "description": "Suchtext für die entfernte Rezeptquelle."},
+        "search_id": {"name": "Such-ID", "description": "Vorhandene Such-ID zum Abrufen."},
+        "source": {"name": "Quelle", "description": "Entfernte Rezeptquelle."},
+        "locale": {"name": "Gebietsschema", "description": "Optionales Rezeptgebietsschema."},
+        "force": {"name": "Aktualisierung erzwingen", "description": "Eine gleichwertige abgeschlossene Suche erneut einreihen."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Optionale EverShelf-Konfigurationseintrags-ID."}
+      }
+    },
+    "recipe_detail": {
+      "name": "Rezeptdetails abrufen",
+      "description": "Die begrenzte Rezeptdetailansicht für ein EverShelf-Rezept zurückgeben.",
+      "fields": {
+        "recipe_id": {"name": "Rezept-ID", "description": "Positive EverShelf-Katalogrezept-ID."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Optionale EverShelf-Konfigurationseintrags-ID."}
+      }
+    },
+    "recipe_grocery_add": {
+      "name": "Rezeptzutaten hinzufügen",
+      "description": "Ausgewählte fehlende Zutaten zu EverShelf hinzufügen und geeignete Einträge in eine Home-Assistant-Aufgabenliste spiegeln.",
+      "fields": {
+        "recipe_id": {"name": "Rezept-ID", "description": "Positive EverShelf-Katalogrezept-ID."},
+        "selections": {"name": "Zutatenauswahl", "description": "Ein bis 100 Objekte mit Zutatenschlüssel und optionaler Position."},
+        "idempotency_key": {"name": "Idempotenzschlüssel", "description": "Stabiler Client-Befehlsschlüssel für diese Rezeptauswahl."},
+        "todo_entity_id": {"name": "Home-Assistant-Aufgabenliste", "description": "Benutzerliste für deduplizierte geeignete Einträge."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Bei mehreren EverShelf-Instanzen ist diese ID erforderlich."}
+      }
+    },
     "suggest_location": {
       "name": "Lagerort vorschlagen",
       "description": "Den vorherigen Lagerort für einen exakten Barcode oder manuell eingegebenen Produktnamen zurückgeben, andernfalls die EverShelf-KI verwenden.",

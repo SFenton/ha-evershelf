@@ -4,7 +4,7 @@
 > This integration does **not** work with any cloud service — EverShelf runs on your own server.
 
 [![HACS Integration](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
-[![GitHub Release](https://img.shields.io/github/v/release/dadaloop82/ha-evershelf)](https://github.com/dadaloop82/ha-evershelf/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/SFenton/ha-evershelf)](https://github.com/SFenton/ha-evershelf/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![HA Minimum Version](https://img.shields.io/badge/HA-2024.1%2B-41BDF5.svg)](https://www.home-assistant.io)
 [![Platforms](https://img.shields.io/badge/platforms-sensor%20|%20binary__sensor%20|%20button%20|%20todo%20|%20calendar%20|%20text-blue.svg)](#entities)
@@ -18,11 +18,11 @@ Bring your pantry into Home Assistant.
 
 ### Step 1 — Add via HACS
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=dadaloop82&repository=ha-evershelf&category=integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=SFenton&repository=ha-evershelf&category=integration)
 
 > Don't have HACS yet? [Install HACS first](https://hacs.xyz/docs/setup/download/).
 
-1. Click the badge above (or go to **HACS → Integrations → ⋮ → Custom repositories** and add `https://github.com/dadaloop82/ha-evershelf` with category **Integration**)
+1. Click the badge above (or go to **HACS → Integrations → ⋮ → Custom repositories** and add `https://github.com/SFenton/ha-evershelf` with category **Integration**)
 2. Find **EverShelf** and click **Download**
 3. Restart Home Assistant
 
@@ -40,7 +40,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 | Requirement | Details |
 |---|---|
-| **EverShelf** (self-hosted) | v1.7.0+ — [installation guide](https://github.com/dadaloop82/EverShelf#-quick-start) |
+| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, and grocery actions require `recipe_grocery_v1` |
 | **Home Assistant** | 2024.1.0 or newer |
 | **Network** | HA host must be able to reach the EverShelf server (same LAN or routed) |
 | **SETTINGS_TOKEN** | Optional — needed only for write operations (add to shopping, mark used) |
@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **15 Services** | `add_to_shopping`, `mark_used`, `refresh`, `suggest_recipe`, `refresh_prices`, `clear_expired`, `list_inventory`, `delete_inventory`, `delete_inventory_item`, `update_inventory_item`, `set_inventory_prepared_food`, `resolve_barcode`, `suggest_location`, `read_expiry_image`, `add_scanned_item` |
+| **19 Services** | Existing inventory/scanning services plus response services for recipe query, hydration, bounded detail, and idempotent grocery actions |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -196,6 +196,102 @@ Remove expired inventory rows whose quantity is zero.
 ```yaml
 service: evershelf.clear_expired
 ```
+
+### `evershelf.recipe_query`
+
+Returns response data for either a compact 50-card browse page or a responsive
+recommendation set of up to 100 cards. Ranking, filtering, deduplication, and paging
+remain inside EverShelf.
+
+```yaml
+service: evershelf.recipe_query
+data:
+  kind: browse
+  q: chicken
+  sort: availability
+  availability_weight: 100
+  expiry_weight: 25
+  minimum_coverage: 0
+  limit: 50
+```
+
+Use `kind: recommendations` for the Food & Recipes carousel.
+
+### `evershelf.recipe_hydration`
+
+Starts an idempotent Cookidoo metadata search or polls an existing `search_id`.
+The service returns immediately; local results remain available while the
+background worker imports new cards.
+
+```yaml
+service: evershelf.recipe_hydration
+data:
+  query: chicken
+  locale: en
+```
+
+### `evershelf.recipe_detail`
+
+Returns the bounded `recipe_detail_v1` envelope for one positive catalog ID.
+Cookidoo instructions remain external-link-only; the service does not retrieve or
+reconstruct provider instructions.
+Backends without `recipe_detail_v1` receive a structured
+`unsupported_capability` response only after a successful recent capability
+probe. Transient probe failures return `capability_probe_failed`, while periodic
+refreshes detect backend upgrades without reloading the integration.
+The backend `grocery` projection and ingredient `display_name`, `source_text`,
+and optional `closest_match` fields pass through unchanged. The effective
+`detail.capabilities.grocery_add` additionally requires current
+`recipe_grocery_v1` support. If detail is available but grocery support is
+unsupported or temporarily unavailable, detail still succeeds with
+`grocery_add: false` plus bounded `grocery_add_state` and
+`grocery_add_reason` annotations.
+
+```yaml
+service: evershelf.recipe_detail
+data:
+  recipe_id: 123
+```
+
+### `evershelf.recipe_grocery_add`
+
+Calls EverShelf's idempotent grocery mutation first, then mirrors only backend
+`added` and `already_listed` outcomes to a user-facing Home Assistant todo list.
+Backends without `recipe_grocery_v1` receive a structured
+`unsupported_capability` response after a successful recent probe; transient
+probe failures return `capability_probe_failed`.
+EverShelf's internal shopping list and `todo.shopping_list` remain separate,
+intentional destinations. Pending todo names are Unicode-normalized,
+case-folded, and deduplicated before one `todo.add_item` call per absent item.
+Source amounts may be copied to a supported todo description but are never sent
+as numeric quantities.
+
+```yaml
+service: evershelf.recipe_grocery_add
+data:
+  recipe_id: 123
+  idempotency_key: "ha-recipe-123-command-01"
+  selections:
+    - key: "ri:2:0123456789abcdef"
+      position: 2
+  todo_entity_id: todo.shopping_list
+```
+
+The response keeps bounded backend outcomes and adds `ha_mirror.outcomes`.
+`summary.backend` reports EverShelf results and `summary.ha_mirror` reports
+`added`, `already_present`, `skipped`, and `failed` todo outcomes. Successful
+mirror outcomes are retained in Home Assistant storage for about 30 days, with
+deterministic count and age limits. A backend replay with the same config entry,
+todo entity, and idempotency key therefore does not recreate an item that was
+completed or removed after the original command. A new idempotency key is a new
+command and may add the item again.
+
+`ha_mirror.replay_persistence` reports whether that replay protection is
+`durable`. If Home Assistant storage cannot be loaded or saved, todo processing
+still uses pending-list deduplication, but the status is `degraded` with
+`durable: false`; `ha_mirror.error` identifies the load or save failure and the
+top-level response reports `partial_failure`. Failed loads are retried only
+after a cooldown and are never treated as an authoritative empty ledger.
 
 ### `evershelf.delete_inventory`
 
@@ -372,6 +468,8 @@ SETTINGS_TOKEN=your-strong-random-string
 ```
 
 Enter the same value in HA when configuring the integration.
+The integration sends it only in the `X-API-Token` request header; credentials
+are never placed in EverShelf URLs.
 Without a token the integration runs **read-only** — all 16 sensors, the calendar, and the todo entity (read) still work. Write operations need the token.
 
 ### Options

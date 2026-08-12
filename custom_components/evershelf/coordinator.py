@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import asyncio
-import logging
+from collections.abc import Mapping
 from datetime import timedelta
+import logging
+import time
 from typing import Any
 
 import aiohttp
@@ -13,8 +15,21 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api_auth import evershelf_headers, evershelf_params
 from .const import DEFAULT_EXPIRY_DAYS, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .recipe_api import (
+    recipe_detail_request,
+    recipe_grocery_add_request,
+    recipe_hydration_request,
+    recipe_query_request,
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+CAPABILITY_SUPPORTED = "supported"
+CAPABILITY_UNSUPPORTED = "unsupported"
+CAPABILITY_UNAVAILABLE = "unavailable"
+
+_CAPABILITY_REFRESH_INTERVAL_SECONDS = 15 * 60
+_CAPABILITY_PROBE_COOLDOWN_SECONDS = 30
 
 
 class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -39,6 +54,15 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.url = url.rstrip("/")
         self.token = token
         self.expiry_days = expiry_days
+        self.capabilities: frozenset[str] = frozenset()
+        self.recipe_catalog_supported = False
+        self.recipe_detail_supported = False
+        self.recipe_grocery_supported = False
+        self._capability_probe_lock = asyncio.Lock()
+        self._capability_last_attempt: float | None = None
+        self._capability_last_success: float | None = None
+        self._capability_probe_failed = False
+        self._capability_clock = time.monotonic
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -52,6 +76,22 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _session(self) -> aiohttp.ClientSession:
         return async_get_clientsession(self.hass, verify_ssl=False)
+
+    async def _decode_json_response(
+        self,
+        response: aiohttp.ClientResponse,
+        action: str,
+    ) -> dict[str, Any]:
+        """Decode a JSON response while preserving structured HTTP errors."""
+        data = await response.json(content_type=None)
+        if not isinstance(data, dict):
+            data = {"data": data}
+        if response.status != 200:
+            data.setdefault("success", False)
+            data.setdefault("error", f"http_{response.status}")
+            data["http_status"] = response.status
+            _LOGGER.warning("EverShelf %s returned HTTP %s", action, response.status)
+        return data
 
     # ------------------------------------------------------------------
     # DataUpdateCoordinator
@@ -101,6 +141,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             except aiohttp.ClientError:
                 pass  # shopping list failure is non-fatal
 
+            await self.async_load_capabilities()
             return result
 
         except aiohttp.ClientError as err:
@@ -127,7 +168,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     return True, info.get("name", info.get("instance", "EverShelf"))
                 if resp.status in (401, 403):
                     return False, "invalid_auth"
-        except aiohttp.ClientError:
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
             pass
 
         # Fallback to ha_sensor (older EverShelf versions)
@@ -147,7 +188,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         return False, "cannot_connect"
 
-    async def async_get_info(self) -> dict[str, Any]:
+    async def async_get_info(self) -> dict[str, Any] | None:
         """Fetch ha_info from EverShelf (for zeroconf confirmation)."""
         try:
             async with self._session().get(
@@ -156,11 +197,113 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=10),
             ) as resp:
-                if resp.status == 200:
-                    return await resp.json(content_type=None)
-        except aiohttp.ClientError:
-            pass
-        return {}
+                if resp.status != 200:
+                    _LOGGER.debug(
+                        "EverShelf capability probe returned HTTP %s",
+                        resp.status,
+                    )
+                    return None
+                info = await resp.json(content_type=None)
+                if not isinstance(info, dict):
+                    _LOGGER.warning(
+                        "EverShelf capability probe returned an invalid response"
+                    )
+                    return None
+                return info
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+            _LOGGER.debug(
+                "EverShelf capability probe failed: %s",
+                type(err).__name__,
+            )
+        return None
+
+    def _capability_snapshot_is_fresh(self, now: float) -> bool:
+        """Return whether a successful capability probe is still authoritative."""
+        if self._capability_last_success is None:
+            return False
+        age = now - self._capability_last_success
+        return 0 <= age < _CAPABILITY_REFRESH_INTERVAL_SECONDS
+
+    def _capability_probe_is_due(self, now: float) -> bool:
+        """Return whether another bounded capability probe may start."""
+        if self._capability_snapshot_is_fresh(now):
+            return False
+        if self._capability_last_attempt is None:
+            return True
+        age = now - self._capability_last_attempt
+        return age < 0 or age >= _CAPABILITY_PROBE_COOLDOWN_SECONDS
+
+    def _set_capabilities(self, capabilities: frozenset[str]) -> None:
+        """Apply one successful capability snapshot."""
+        self.capabilities = capabilities
+        self.recipe_catalog_supported = "recipe_catalog_v2" in self.capabilities
+        self.recipe_detail_supported = "recipe_detail_v1" in self.capabilities
+        self.recipe_grocery_supported = "recipe_grocery_v1" in self.capabilities
+
+    async def async_load_capabilities(self) -> bool:
+        """Refresh capabilities without downgrading on transient probe errors."""
+        now = self._capability_clock()
+        if not self._capability_probe_is_due(now):
+            return self._capability_snapshot_is_fresh(now)
+
+        async with self._capability_probe_lock:
+            now = self._capability_clock()
+            if not self._capability_probe_is_due(now):
+                return self._capability_snapshot_is_fresh(now)
+
+            self._capability_last_attempt = now
+            try:
+                info = await self.async_get_info()
+            except Exception as err:
+                _LOGGER.warning(
+                    "EverShelf capability probe failed unexpectedly: %s",
+                    type(err).__name__,
+                )
+                info = None
+
+            if not isinstance(info, Mapping):
+                self._capability_probe_failed = True
+                return False
+            if info.get("success") is False:
+                self._capability_probe_failed = True
+                return False
+
+            raw_capabilities = info.get("capabilities", [])
+            if not isinstance(raw_capabilities, list):
+                _LOGGER.warning(
+                    "EverShelf capability probe returned an invalid capability list"
+                )
+                self._capability_probe_failed = True
+                return False
+
+            capabilities = frozenset(
+                capability
+                for capability in raw_capabilities
+                if isinstance(capability, str) and capability
+            )
+            self._set_capabilities(capabilities)
+            self._capability_last_success = self._capability_clock()
+            self._capability_probe_failed = False
+            return True
+
+    async def async_capability_status(self, capability: str) -> str:
+        """Return supported, unsupported, or temporarily unavailable."""
+        await self.async_load_capabilities()
+        if capability in self.capabilities:
+            return CAPABILITY_SUPPORTED
+        if self._capability_snapshot_is_fresh(self._capability_clock()):
+            return CAPABILITY_UNSUPPORTED
+        return CAPABILITY_UNAVAILABLE
+
+    @property
+    def capabilities_known(self) -> bool:
+        """Return whether any capability probe has completed successfully."""
+        return self._capability_last_success is not None
+
+    @property
+    def capability_probe_failed(self) -> bool:
+        """Return whether the most recent attempted capability probe failed."""
+        return self._capability_probe_failed
 
     # ------------------------------------------------------------------
     # HA Services
@@ -244,7 +387,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 timeout=aiohttp.ClientTimeout(total=15),
             ) as resp:
                 return resp.status == 200
-        except aiohttp.ClientError as err:
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
             _LOGGER.error("EverShelf %s error: %s", action, err)
             return False
 
@@ -253,6 +396,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         action: str,
         payload: dict[str, Any],
         timeout: int = 15,
+        preserve_errors: bool = False,
     ) -> dict[str, Any] | None:
         """POST request returning parsed JSON or None on error."""
         try:
@@ -263,14 +407,19 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 json=payload,
                 timeout=aiohttp.ClientTimeout(total=timeout),
             ) as resp:
-                if resp.status == 200:
-                    return await resp.json(content_type=None)
-                _LOGGER.warning("EverShelf %s returned HTTP %s", action, resp.status)
-        except aiohttp.ClientError as err:
+                data = await self._decode_json_response(resp, action)
+                return data if resp.status == 200 or preserve_errors else None
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
             _LOGGER.error("EverShelf %s error: %s", action, err)
         return None
 
-    async def _get_json(self, action: str, params: dict | None = None, timeout: int = 15) -> dict[str, Any] | None:
+    async def _get_json(
+        self,
+        action: str,
+        params: dict | None = None,
+        timeout: int = 15,
+        preserve_errors: bool = False,
+    ) -> dict[str, Any] | None:
         """GET request returning parsed JSON or None on error."""
         try:
             p = self._params({"action": action, **(params or {})})
@@ -280,10 +429,9 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 headers=self._headers(),
                 timeout=aiohttp.ClientTimeout(total=timeout),
             ) as resp:
-                if resp.status == 200:
-                    return await resp.json(content_type=None)
-                _LOGGER.warning("EverShelf %s returned HTTP %s", action, resp.status)
-        except aiohttp.ClientError as err:
+                data = await self._decode_json_response(resp, action)
+                return data if resp.status == 200 or preserve_errors else None
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
             _LOGGER.error("EverShelf %s error: %s", action, err)
         return None
 
@@ -337,6 +485,97 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         params = {"location": location} if location else None
         return await self._get_json("inventory_list", params)
+
+    async def async_recipe_query(self, data: dict[str, Any]) -> dict[str, Any] | None:
+        """Return compact recipe browse or recommendation results."""
+        action, params = recipe_query_request(data)
+        return await self._get_json(
+            action,
+            params,
+            timeout=30,
+            preserve_errors=True,
+        )
+
+    async def async_recipe_hydration(
+        self,
+        data: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Enqueue an idempotent remote recipe search or read its status."""
+        method, action, request = recipe_hydration_request(data)
+        if method == "GET":
+            return await self._get_json(
+                action,
+                request,
+                timeout=30,
+                preserve_errors=True,
+            )
+
+        discovery = await self._post_json(
+            action,
+            request,
+            timeout=30,
+            preserve_errors=True,
+        )
+        if not discovery or discovery.get("success") is not True:
+            return discovery
+        if discovery.get("connector_enabled") is False:
+            return {
+                "success": False,
+                "error": "cookidoo_connector_disabled",
+            }
+        search_id = str(discovery.get("search_id", "")).strip()
+        if not search_id:
+            return discovery
+        status = await self._get_json(
+            "recipe_jobs_status",
+            {"search_id": search_id},
+            timeout=30,
+            preserve_errors=True,
+        )
+        return status or {
+            "success": True,
+            "search_id": search_id,
+            "status": "queued",
+            "imported_count": 0,
+            "updated_count": 0,
+            "pages_scanned": 0,
+            "remote_has_more": False,
+            "remote_exhausted": False,
+            "queue_position": None,
+            "next_poll_ms": 15000,
+            "new_items": [],
+            "error": None,
+        }
+
+    async def async_recipe_detail(
+        self,
+        recipe_id: int,
+    ) -> dict[str, Any] | None:
+        """Return the bounded detail projection for one recipe."""
+        method, action, params = recipe_detail_request({"recipe_id": recipe_id})
+        if method != "GET":
+            raise ValueError("recipe detail request must use GET")
+        return await self._get_json(
+            action,
+            params,
+            timeout=30,
+            preserve_errors=True,
+        )
+
+    async def async_recipe_grocery_add(
+        self,
+        data: Mapping[str, object],
+    ) -> dict[str, Any] | None:
+        """Add selected missing ingredients to EverShelf's internal list."""
+        method, action, payload = recipe_grocery_add_request(data)
+        if method != "POST":
+            raise ValueError("recipe grocery request must use POST")
+        return await self._post_json(
+            action,
+            payload,
+            timeout=30,
+            preserve_errors=True,
+        )
 
     async def async_delete_inventory(
         self,

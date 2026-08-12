@@ -1,17 +1,25 @@
 """EverShelf Home Assistant integration."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import binascii
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 import logging
+import math
 from pathlib import Path
+import time
+import unicodedata
 
+from homeassistant.components.todo import TodoListEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.core import Context, HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 import voluptuous as vol
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_EXPIRY_DAYS,
@@ -22,7 +30,18 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
-from .coordinator import EverShelfCoordinator
+from .coordinator import (
+    CAPABILITY_SUPPORTED,
+    CAPABILITY_UNSUPPORTED,
+    EverShelfCoordinator,
+)
+from .recipe_api import (
+    RECIPE_GROCERY_MAX_SELECTIONS,
+    RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH,
+    RECIPE_IDEMPOTENCY_KEY_PATTERN,
+    RECIPE_INGREDIENT_KEY_MAX_LENGTH,
+    RECIPE_INGREDIENT_KEY_PATTERN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,6 +56,269 @@ PLATFORMS: list[Platform] = [
 
 _INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "spice_rack", "cabinet", "altro")
 _LOCATION_SUGGESTION_MODES = ("barcode", "manual")
+_RECIPE_DETAIL_CAPABILITY = "recipe_detail_v1"
+_RECIPE_GROCERY_CAPABILITY = "recipe_grocery_v1"
+_DEFAULT_RECIPE_TODO_ENTITY_ID = "todo.shopping_list"
+_MAX_RECIPE_MIRROR_REQUESTS = 256
+_MAX_RECIPE_MIRROR_NAMES = RECIPE_GROCERY_MAX_SELECTIONS
+_MAX_RECIPE_MIRROR_NAME_LENGTH = 200
+_MAX_CONFIG_ENTRY_ID_LENGTH = 128
+_RECIPE_MIRROR_TTL_SECONDS = 30 * 24 * 60 * 60
+_RECIPE_MIRROR_LOAD_COOLDOWN_SECONDS = 30
+_RECIPE_MIRROR_STORAGE_VERSION = 1
+_RECIPE_MIRROR_STORAGE_KEY = f"{DOMAIN}.recipe_mirror_replay"
+_MAX_RECIPE_ERROR_LENGTH = 500
+_RECIPE_SERVICE_RUNTIME_KEY = f"{DOMAIN}_recipe_services"
+
+
+@dataclass(slots=True)
+class _MirrorReplayRecord:
+    """One bounded persisted command outcome set."""
+
+    config_entry_id: str
+    todo_entity_id: str
+    idempotency_key: str
+    updated_at: float
+    outcomes: dict[str, str]
+
+
+@dataclass(slots=True)
+class _RecipeServiceRuntime:
+    """Runtime locks and persistent replay state for recipe todo mirroring."""
+
+    store: Store | None = None
+    locks: dict[str, asyncio.Lock] = field(default_factory=dict)
+    records: dict[tuple[str, str, str], _MirrorReplayRecord] = field(
+        default_factory=dict
+    )
+    load_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    write_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    loaded: bool = False
+    dirty: bool = False
+    _load_last_attempt: float | None = None
+    _load_clock: Callable[[], float] = time.monotonic
+
+    def _load_is_due(self, now: float) -> bool:
+        """Return whether another bounded storage load may start."""
+        if self.loaded:
+            return False
+        if self._load_last_attempt is None:
+            return True
+        age = now - self._load_last_attempt
+        return age < 0 or age >= _RECIPE_MIRROR_LOAD_COOLDOWN_SECONDS
+
+    async def async_load(self) -> bool:
+        """Load persisted replay outcomes when the retry cooldown permits."""
+        if self.loaded:
+            return True
+        now = self._load_clock()
+        if not self._load_is_due(now) and not self.load_lock.locked():
+            return False
+
+        async with self.load_lock:
+            if self.loaded:
+                return True
+            now = self._load_clock()
+            if not self._load_is_due(now):
+                return False
+
+            self._load_last_attempt = now
+            payload: object = None
+            if self.store is not None:
+                try:
+                    payload = await self.store.async_load()
+                except Exception as err:
+                    self.loaded = False
+                    _LOGGER.warning(
+                        "Could not load EverShelf recipe mirror replay state: %s",
+                        type(err).__name__,
+                    )
+                    return False
+
+            records, sanitized = _deserialize_mirror_records(
+                payload,
+                time.time(),
+            )
+            self.records = records
+            self.dirty = sanitized
+            self.loaded = True
+            if self.dirty:
+                async with self.write_lock:
+                    await self._async_save_locked(time.time())
+            return True
+
+    def _prune_locked(self, now: float) -> None:
+        """Prune expired and excess records in a deterministic order."""
+        cutoff = now - _RECIPE_MIRROR_TTL_SECONDS
+        expired: list[tuple[str, str, str]] = []
+        for key, record in self.records.items():
+            if record.updated_at > now:
+                record.updated_at = now
+                self.dirty = True
+            if record.updated_at <= cutoff or not record.outcomes:
+                expired.append(key)
+        for key in expired:
+            self.records.pop(key, None)
+            self.dirty = True
+
+        excess = len(self.records) - _MAX_RECIPE_MIRROR_REQUESTS
+        if excess <= 0:
+            return
+        oldest = sorted(
+            self.records,
+            key=lambda key: (
+                self.records[key].updated_at,
+                key[0],
+                key[1],
+                key[2],
+            ),
+        )
+        for key in oldest[:excess]:
+            self.records.pop(key, None)
+            self.dirty = True
+
+    def _storage_payload_locked(self) -> dict[str, object]:
+        """Return a deterministic, credential-free storage payload."""
+        records = sorted(
+            self.records.values(),
+            key=lambda record: (
+                record.updated_at,
+                record.config_entry_id,
+                record.todo_entity_id,
+                record.idempotency_key,
+            ),
+        )
+        return {
+            "records": [
+                {
+                    "config_entry_id": record.config_entry_id,
+                    "todo_entity_id": record.todo_entity_id,
+                    "idempotency_key": record.idempotency_key,
+                    "updated_at": record.updated_at,
+                    "outcomes": [
+                        {"name": name, "outcome": record.outcomes[name]}
+                        for name in sorted(record.outcomes)
+                    ],
+                }
+                for record in records
+            ]
+        }
+
+    async def _async_save_locked(self, now: float) -> bool:
+        """Save current replay state while the write lock is held."""
+        if not self.loaded:
+            return False
+        self._prune_locked(now)
+        if self.store is None:
+            self.dirty = False
+            return True
+        payload = self._storage_payload_locked()
+        try:
+            await self.store.async_save(payload)
+            persisted = await self.store.async_load()
+        except Exception as err:
+            self.dirty = True
+            _LOGGER.warning(
+                "Could not save EverShelf recipe mirror replay state: %s",
+                type(err).__name__,
+            )
+            return False
+        if persisted != payload:
+            self.dirty = True
+            _LOGGER.warning(
+                "EverShelf recipe mirror replay state was not persisted"
+            )
+            return False
+        self.dirty = False
+        return True
+
+    async def async_get_replay_outcomes(
+        self,
+        config_entry_id: str,
+        todo_entity_id: str,
+        idempotency_key: str,
+    ) -> dict[str, str]:
+        """Return successful outcomes for one replayed backend command."""
+        if not await self.async_load():
+            return {}
+        async with self.write_lock:
+            self._prune_locked(time.time())
+            record = self.records.get(
+                _mirror_record_key(
+                    config_entry_id,
+                    todo_entity_id,
+                    idempotency_key,
+                )
+            )
+            return dict(record.outcomes) if record is not None else {}
+
+    async def async_record_outcomes(
+        self,
+        config_entry_id: str,
+        todo_entity_id: str,
+        idempotency_key: str,
+        outcomes: Mapping[str, str],
+    ) -> bool:
+        """Merge successful normalized outcomes and persist them atomically."""
+        if not await self.async_load():
+            return False
+        normalized_outcomes: dict[str, str] = {}
+        for raw_name, outcome in outcomes.items():
+            name = _normalize_todo_name(raw_name)[:_MAX_RECIPE_MIRROR_NAME_LENGTH]
+            if name and outcome in ("added", "already_present"):
+                normalized_outcomes[name] = outcome
+        if not normalized_outcomes:
+            return True
+
+        async with self.write_lock:
+            now = time.time()
+            self._prune_locked(now)
+            key = _mirror_record_key(
+                config_entry_id,
+                todo_entity_id,
+                idempotency_key,
+            )
+            existing = self.records.get(key)
+            merged = dict(existing.outcomes) if existing is not None else {}
+            merged.update(normalized_outcomes)
+            merged = {
+                name: merged[name]
+                for name in sorted(merged)[:_MAX_RECIPE_MIRROR_NAMES]
+            }
+            self.records[key] = _MirrorReplayRecord(
+                config_entry_id=key[0],
+                todo_entity_id=key[1],
+                idempotency_key=key[2],
+                updated_at=now,
+                outcomes=merged,
+            )
+            self.dirty = True
+            return await self._async_save_locked(now)
+
+    async def async_flush(self) -> bool:
+        """Finish any serialized write before the runtime is unloaded."""
+        if not await self.async_load():
+            return not self.dirty
+        async with self.write_lock:
+            if not self.dirty:
+                return True
+            return await self._async_save_locked(time.time())
+
+
+def _strict_int(value: object) -> int:
+    """Validate an integer without accepting booleans or numeric strings."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise vol.Invalid("value must be an integer")
+    return value
+
+
+def _todo_entity_id(value: object) -> str:
+    """Validate one Home Assistant todo entity ID."""
+    entity_id = cv.entity_id(value)
+    if not entity_id.startswith("todo."):
+        raise vol.Invalid("value must be a todo entity ID")
+    return entity_id
+
 
 _ADD_TO_SHOPPING_SCHEMA = vol.Schema(
     {
@@ -59,6 +341,88 @@ _LIST_INVENTORY_SCHEMA = vol.Schema(
         vol.Optional("location", default=""): vol.Any("", vol.In(_INVENTORY_LOCATIONS)),
         vol.Optional("q", default=""): cv.string,
         vol.Optional("search", default=""): cv.string,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_RECIPE_QUERY_SCHEMA = vol.Schema(
+    {
+        vol.Required("kind"): vol.In(("browse", "recommendations")),
+        vol.Optional("q", default=""): cv.string,
+        vol.Optional("sort", default="availability"): vol.In(
+            ("availability", "expiry", "alphabetical")
+        ),
+        vol.Optional("availability_weight", default=100): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=100)
+        ),
+        vol.Optional("expiry_weight", default=25): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=100)
+        ),
+        vol.Optional("minimum_coverage", default=0): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=100)
+        ),
+        vol.Optional("expiring_within_days"): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=3650)
+        ),
+        vol.Optional("source", default=""): cv.string,
+        vol.Optional("locale", default=""): cv.string,
+        vol.Optional("limit"): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=100)
+        ),
+        vol.Optional("cursor", default=""): cv.string,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_RECIPE_HYDRATION_SCHEMA = vol.Schema(
+    {
+        vol.Optional("query", default=""): cv.string,
+        vol.Optional("q", default=""): cv.string,
+        vol.Optional("search_id", default=""): cv.string,
+        vol.Optional("source", default="cookidoo"): cv.string,
+        vol.Optional("locale", default=""): cv.string,
+        vol.Optional("force", default=False): cv.boolean,
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_RECIPE_DETAIL_SCHEMA = vol.Schema(
+    {
+        vol.Required("recipe_id"): vol.All(_strict_int, vol.Range(min=1)),
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
+_RECIPE_GROCERY_SELECTION_SCHEMA = vol.Schema(
+    {
+        vol.Required("key"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Length(min=1, max=RECIPE_INGREDIENT_KEY_MAX_LENGTH),
+            vol.Match(RECIPE_INGREDIENT_KEY_PATTERN.pattern),
+        ),
+        vol.Optional("position"): vol.All(_strict_int, vol.Range(min=0)),
+    },
+    extra=vol.PREVENT_EXTRA,
+)
+
+_RECIPE_GROCERY_ADD_SCHEMA = vol.Schema(
+    {
+        vol.Required("recipe_id"): vol.All(_strict_int, vol.Range(min=1)),
+        vol.Required("selections"): vol.All(
+            [_RECIPE_GROCERY_SELECTION_SCHEMA],
+            vol.Length(min=1, max=RECIPE_GROCERY_MAX_SELECTIONS),
+        ),
+        vol.Required("idempotency_key"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Length(min=1, max=RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH),
+            vol.Match(RECIPE_IDEMPOTENCY_KEY_PATTERN.pattern),
+        ),
+        vol.Optional(
+            "todo_entity_id",
+            default=_DEFAULT_RECIPE_TODO_ENTITY_ID,
+        ): _todo_entity_id,
         vol.Optional("config_entry_id"): cv.string,
     }
 )
@@ -162,6 +526,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         expiry_days=entry.options.get(CONF_EXPIRY_DAYS, DEFAULT_EXPIRY_DAYS),
     )
     await coordinator.async_config_entry_first_refresh()
+    await coordinator.async_load_capabilities()
+    await _async_get_recipe_service_runtime(hass)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -232,6 +598,62 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if result is None:
                 raise ServiceValidationError("EverShelf: inventory list failed")
             return result
+
+        async def _handle_recipe_query(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            if not coord.recipe_catalog_supported:
+                raise ServiceValidationError(
+                    "EverShelf: recipe catalog services require a backend with "
+                    "the recipe_catalog_v2 capability"
+                )
+            data = dict(call.data)
+            data.pop("config_entry_id", None)
+            try:
+                result = await coord.async_recipe_query(data)
+            except ValueError as err:
+                raise ServiceValidationError(f"EverShelf: {err}") from err
+            if not result or result.get("success") is not True:
+                message = (
+                    result.get("message") or result.get("error")
+                    if isinstance(result, dict)
+                    else "recipe query failed"
+                )
+                raise ServiceValidationError(
+                    f"EverShelf: {message or 'recipe query failed'}"
+                )
+            return result
+
+        async def _handle_recipe_hydration(call: ServiceCall) -> dict:
+            coord = _get_coordinator(hass, call)
+            if not coord.recipe_catalog_supported:
+                raise ServiceValidationError(
+                    "EverShelf: recipe catalog services require a backend with "
+                    "the recipe_catalog_v2 capability"
+                )
+            data = dict(call.data)
+            data.pop("config_entry_id", None)
+            try:
+                result = await coord.async_recipe_hydration(data)
+            except ValueError as err:
+                raise ServiceValidationError(f"EverShelf: {err}") from err
+            if not result or result.get("success") is not True:
+                message = (
+                    result.get("message") or result.get("error")
+                    if isinstance(result, dict)
+                    else "recipe hydration failed"
+                )
+                raise ServiceValidationError(
+                    f"EverShelf: {message or 'recipe hydration failed'}"
+                )
+            return result
+
+        async def _handle_recipe_detail(call: ServiceCall) -> dict[str, object]:
+            return await _async_handle_recipe_detail(hass, call)
+
+        async def _handle_recipe_grocery_add(
+            call: ServiceCall,
+        ) -> dict[str, object]:
+            return await _async_handle_recipe_grocery_add(hass, call)
 
         async def _handle_delete_inventory(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
@@ -370,6 +792,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(
             DOMAIN,
+            "recipe_query",
+            _handle_recipe_query,
+            schema=_RECIPE_QUERY_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "recipe_hydration",
+            _handle_recipe_hydration,
+            schema=_RECIPE_HYDRATION_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "recipe_detail",
+            _handle_recipe_detail,
+            schema=_RECIPE_DETAIL_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "recipe_grocery_add",
+            _handle_recipe_grocery_add,
+            schema=_RECIPE_GROCERY_ADD_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "delete_inventory",
             _handle_delete_inventory,
             schema=_DELETE_INVENTORY_SCHEMA,
@@ -443,6 +893,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "refresh_prices",
             "clear_expired",
             "list_inventory",
+            "recipe_query",
+            "recipe_hydration",
+            "recipe_detail",
+            "recipe_grocery_add",
             "delete_inventory",
             "delete_inventory_item",
             "update_inventory_item",
@@ -453,6 +907,15 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "add_scanned_item",
         ):
             hass.services.async_remove(DOMAIN, svc)
+        runtime = hass.data.get(_RECIPE_SERVICE_RUNTIME_KEY)
+        if not isinstance(runtime, _RecipeServiceRuntime):
+            hass.data.pop(_RECIPE_SERVICE_RUNTIME_KEY, None)
+        elif await runtime.async_flush():
+            hass.data.pop(_RECIPE_SERVICE_RUNTIME_KEY, None)
+        else:
+            _LOGGER.warning(
+                "Retaining unsaved EverShelf recipe mirror state after unload"
+            )
 
     return unload_ok
 
@@ -462,7 +925,12 @@ async def _async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     await hass.config_entries.async_reload(entry.entry_id)
 
 
-def _get_coordinator(hass: HomeAssistant, call: ServiceCall) -> EverShelfCoordinator:
+def _get_coordinator(
+    hass: HomeAssistant,
+    call: ServiceCall,
+    *,
+    require_explicit_if_multiple: bool = False,
+) -> EverShelfCoordinator:
     """Return the coordinator for a service call."""
     entries: dict[str, EverShelfCoordinator] = hass.data.get(DOMAIN, {})
     entry_id: str | None = call.data.get("config_entry_id")
@@ -473,7 +941,895 @@ def _get_coordinator(hass: HomeAssistant, call: ServiceCall) -> EverShelfCoordin
         return coord
     if not entries:
         raise ServiceValidationError("EverShelf: no instances configured")
+    if require_explicit_if_multiple and len(entries) > 1:
+        raise ServiceValidationError(
+            "EverShelf: config_entry_id is required when multiple "
+            "instances are configured"
+        )
     return next(iter(entries.values()))
+
+
+def _unsupported_capability_response(capability: str) -> dict[str, object]:
+    """Return the structured response used for unsupported optional APIs."""
+    return {
+        "success": False,
+        "error_kind": "unsupported",
+        "error": "unsupported_capability",
+        "required_capability": capability,
+        "message": f"EverShelf backend does not advertise {capability}",
+    }
+
+
+def _unavailable_capability_response(capability: str) -> dict[str, object]:
+    """Return a transient error when capability support cannot be confirmed."""
+    return {
+        "success": False,
+        "error_kind": "unavailable",
+        "error": "capability_probe_failed",
+        "required_capability": capability,
+        "message": (
+            "Could not confirm whether the EverShelf backend advertises "
+            f"{capability}"
+        ),
+    }
+
+
+async def _async_capability_error(
+    coordinator: EverShelfCoordinator,
+    capability: str,
+) -> dict[str, object] | None:
+    """Return a structured capability error, or None when supported."""
+    status = await coordinator.async_capability_status(capability)
+    if status == CAPABILITY_SUPPORTED:
+        return None
+    if status == CAPABILITY_UNSUPPORTED:
+        return _unsupported_capability_response(capability)
+    return _unavailable_capability_response(capability)
+
+
+def _effective_recipe_detail_response(
+    result: Mapping[str, object],
+    grocery_capability_status: str,
+) -> dict[str, object]:
+    """Apply the HA grocery capability gate without changing backend detail."""
+    response = dict(result)
+    if result.get("success") is not True:
+        return response
+
+    detail = result.get("detail")
+    if not isinstance(detail, Mapping):
+        return response
+    capabilities = detail.get("capabilities")
+    if (
+        not isinstance(capabilities, Mapping)
+        or capabilities.get("grocery_add") is not True
+        or grocery_capability_status == CAPABILITY_SUPPORTED
+    ):
+        return response
+
+    effective_capabilities = dict(capabilities)
+    effective_capabilities["grocery_add"] = False
+    if grocery_capability_status == CAPABILITY_UNSUPPORTED:
+        effective_capabilities["grocery_add_state"] = "unsupported"
+        effective_capabilities["grocery_add_reason"] = "unsupported_capability"
+    else:
+        effective_capabilities["grocery_add_state"] = "unavailable"
+        effective_capabilities["grocery_add_reason"] = "capability_probe_failed"
+
+    effective_detail = dict(detail)
+    effective_detail["capabilities"] = effective_capabilities
+    response["detail"] = effective_detail
+    return response
+
+
+async def _async_handle_recipe_detail(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> dict[str, object]:
+    """Handle a bounded recipe detail response."""
+    coordinator = _get_coordinator(hass, call)
+    capability_error = await _async_capability_error(
+        coordinator,
+        _RECIPE_DETAIL_CAPABILITY,
+    )
+    if capability_error is not None:
+        return capability_error
+
+    try:
+        result = await coordinator.async_recipe_detail(call.data["recipe_id"])
+    except ValueError as err:
+        raise ServiceValidationError(f"EverShelf: {err}") from err
+    if result is None:
+        raise ServiceValidationError("EverShelf: recipe detail request failed")
+
+    detail = result.get("detail")
+    capabilities = (
+        detail.get("capabilities")
+        if isinstance(detail, Mapping)
+        else None
+    )
+    if (
+        result.get("success") is not True
+        or not isinstance(capabilities, Mapping)
+        or capabilities.get("grocery_add") is not True
+    ):
+        return dict(result)
+
+    grocery_capability_status = await coordinator.async_capability_status(
+        _RECIPE_GROCERY_CAPABILITY
+    )
+    return _effective_recipe_detail_response(
+        result,
+        grocery_capability_status,
+    )
+
+
+async def _async_handle_recipe_grocery_add(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> dict[str, object]:
+    """Handle the backend mutation and the deduplicated HA todo mirror."""
+    coordinator = _get_coordinator(
+        hass,
+        call,
+        require_explicit_if_multiple=True,
+    )
+    runtime = await _async_get_recipe_service_runtime(hass)
+    capability_error = await _async_capability_error(
+        coordinator,
+        _RECIPE_GROCERY_CAPABILITY,
+    )
+    if capability_error is not None:
+        return capability_error
+
+    todo_entity_id = _bounded_text(
+        call.data.get(
+            "todo_entity_id",
+            _DEFAULT_RECIPE_TODO_ENTITY_ID,
+        ),
+        255,
+    )
+    try:
+        await hass.services.async_call(
+            "todo",
+            "get_items",
+            {"status": ["needs_action"]},
+            target={"entity_id": todo_entity_id},
+            blocking=True,
+            context=call.context,
+            return_response=True,
+        )
+    except HomeAssistantError as err:
+        message = _bounded_text(
+            str(err).strip(),
+            _MAX_RECIPE_ERROR_LENGTH,
+        )
+        return _todo_read_failure(
+            todo_entity_id,
+            [],
+            "todo_get_items_failed",
+            message or "Could not read pending Home Assistant todo items",
+        )
+
+    backend_request: dict[str, object] = {
+        "recipe_id": call.data["recipe_id"],
+        "selections": call.data["selections"],
+        "idempotency_key": call.data["idempotency_key"],
+    }
+    try:
+        result = await coordinator.async_recipe_grocery_add(backend_request)
+    except ValueError as err:
+        raise ServiceValidationError(f"EverShelf: {err}") from err
+    if result is None:
+        raise ServiceValidationError("EverShelf: recipe grocery request failed")
+    if result.get("success") is not True:
+        return dict(result)
+
+    await coordinator.async_request_refresh()
+    if not isinstance(result.get("outcomes"), list):
+        return {
+            "success": False,
+            "error_kind": "invalid_response",
+            "error": "invalid_grocery_response",
+            "message": "EverShelf returned no grocery outcome list",
+        }
+    backend_outcomes, outcomes_truncated = _bounded_backend_outcomes(result)
+    backend_summary = _bounded_backend_summary(result, backend_outcomes)
+    result_recipe_id = result.get("recipe_id")
+    recipe_id = (
+        result_recipe_id
+        if (
+            isinstance(result_recipe_id, int)
+            and not isinstance(result_recipe_id, bool)
+            and result_recipe_id > 0
+        )
+        else call.data["recipe_id"]
+    )
+    result_idempotency_key = _bounded_text(
+        result.get("idempotency_key"),
+        RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH,
+    )
+    idempotency_key = (
+        result_idempotency_key
+        if RECIPE_IDEMPOTENCY_KEY_PATTERN.fullmatch(result_idempotency_key)
+        else _bounded_text(
+            call.data["idempotency_key"],
+            RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH,
+        )
+    )
+    mirror = await _async_mirror_recipe_groceries(
+        hass,
+        coordinator,
+        runtime,
+        todo_entity_id,
+        idempotency_key,
+        result.get("replayed") is True,
+        backend_outcomes,
+        call.context,
+    )
+    mirror_summary = mirror["summary"]
+    backend_failed = int(backend_summary["failed"])
+    mirror_failed = int(mirror_summary["failed"])
+    success = (
+        not outcomes_truncated
+        and backend_failed == 0
+        and mirror_failed == 0
+        and mirror["success"] is True
+    )
+
+    response: dict[str, object] = {
+        "success": success,
+        "recipe_id": recipe_id,
+        "idempotency_key": idempotency_key,
+        "replayed": result.get("replayed") is True,
+        "outcomes": backend_outcomes,
+        "ha_mirror": mirror,
+        "summary": {
+            "backend": backend_summary,
+            "ha_mirror": mirror_summary,
+        },
+    }
+    if outcomes_truncated:
+        response["outcomes_truncated"] = True
+    if not success:
+        response["partial_failure"] = True
+    return response
+
+
+async def _async_get_recipe_service_runtime(
+    hass: HomeAssistant,
+) -> _RecipeServiceRuntime:
+    """Return the per-HA runtime after one bounded replay-state load attempt."""
+    runtime = hass.data.get(_RECIPE_SERVICE_RUNTIME_KEY)
+    if not isinstance(runtime, _RecipeServiceRuntime):
+        runtime = _RecipeServiceRuntime(
+            store=Store(
+                hass,
+                _RECIPE_MIRROR_STORAGE_VERSION,
+                _RECIPE_MIRROR_STORAGE_KEY,
+            )
+        )
+        hass.data[_RECIPE_SERVICE_RUNTIME_KEY] = runtime
+    await runtime.async_load()
+    return runtime
+
+
+def _mirror_record_key(
+    config_entry_id: str,
+    todo_entity_id: str,
+    idempotency_key: str,
+) -> tuple[str, str, str]:
+    """Return one bounded persistent replay key."""
+    return (
+        config_entry_id[:_MAX_CONFIG_ENTRY_ID_LENGTH],
+        todo_entity_id[:255],
+        idempotency_key[:RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH],
+    )
+
+
+def _deserialize_mirror_records(
+    payload: object,
+    now: float,
+) -> tuple[dict[tuple[str, str, str], _MirrorReplayRecord], bool]:
+    """Return sanitized, TTL-bounded records and whether cleanup was needed."""
+    if payload is None:
+        return {}, False
+    if not isinstance(payload, Mapping):
+        return {}, True
+    raw_records = payload.get("records")
+    if not isinstance(raw_records, list):
+        return {}, True
+
+    records: dict[tuple[str, str, str], _MirrorReplayRecord] = {}
+    sanitized = False
+    cutoff = now - _RECIPE_MIRROR_TTL_SECONDS
+    for raw_record in raw_records:
+        if not isinstance(raw_record, Mapping):
+            sanitized = True
+            continue
+
+        raw_entry_id = raw_record.get("config_entry_id")
+        raw_todo_entity_id = raw_record.get("todo_entity_id")
+        raw_idempotency_key = raw_record.get("idempotency_key")
+        if not all(
+            isinstance(value, str) and value
+            for value in (
+                raw_entry_id,
+                raw_todo_entity_id,
+                raw_idempotency_key,
+            )
+        ):
+            sanitized = True
+            continue
+        key = _mirror_record_key(
+            raw_entry_id,
+            raw_todo_entity_id,
+            raw_idempotency_key,
+        )
+        if (
+            key
+            != (
+                raw_entry_id,
+                raw_todo_entity_id,
+                raw_idempotency_key,
+            )
+            or not key[1].startswith("todo.")
+            or RECIPE_IDEMPOTENCY_KEY_PATTERN.fullmatch(key[2]) is None
+        ):
+            sanitized = True
+            continue
+
+        raw_updated_at = raw_record.get("updated_at")
+        if (
+            isinstance(raw_updated_at, bool)
+            or not isinstance(raw_updated_at, (int, float))
+            or not math.isfinite(float(raw_updated_at))
+            or raw_updated_at <= 0
+        ):
+            sanitized = True
+            continue
+        updated_at = min(float(raw_updated_at), now)
+        if updated_at != raw_updated_at:
+            sanitized = True
+        if updated_at <= cutoff:
+            sanitized = True
+            continue
+
+        raw_outcomes = raw_record.get("outcomes")
+        if not isinstance(raw_outcomes, list):
+            sanitized = True
+            continue
+        outcomes: dict[str, str] = {}
+        for raw_outcome in raw_outcomes:
+            if not isinstance(raw_outcome, Mapping):
+                sanitized = True
+                continue
+            raw_name = raw_outcome.get("name")
+            outcome = raw_outcome.get("outcome")
+            if (
+                not isinstance(raw_name, str)
+                or outcome not in ("added", "already_present")
+            ):
+                sanitized = True
+                continue
+            name = _normalize_todo_name(raw_name)[
+                :_MAX_RECIPE_MIRROR_NAME_LENGTH
+            ]
+            if not name:
+                sanitized = True
+                continue
+            if name != raw_name:
+                sanitized = True
+            if name in outcomes:
+                sanitized = True
+                outcomes[name] = min(outcomes[name], outcome)
+            else:
+                outcomes[name] = outcome
+
+        if len(outcomes) > _MAX_RECIPE_MIRROR_NAMES:
+            outcomes = {
+                name: outcomes[name]
+                for name in sorted(outcomes)[:_MAX_RECIPE_MIRROR_NAMES]
+            }
+            sanitized = True
+        if not outcomes:
+            sanitized = True
+            continue
+
+        record = _MirrorReplayRecord(
+            config_entry_id=key[0],
+            todo_entity_id=key[1],
+            idempotency_key=key[2],
+            updated_at=updated_at,
+            outcomes=outcomes,
+        )
+        existing = records.get(key)
+        if existing is None:
+            records[key] = record
+            continue
+        sanitized = True
+        existing_rank = (
+            existing.updated_at,
+            tuple(sorted(existing.outcomes.items())),
+        )
+        record_rank = (
+            record.updated_at,
+            tuple(sorted(record.outcomes.items())),
+        )
+        if record_rank > existing_rank:
+            records[key] = record
+
+    excess = len(records) - _MAX_RECIPE_MIRROR_REQUESTS
+    if excess > 0:
+        oldest = sorted(
+            records,
+            key=lambda key: (
+                records[key].updated_at,
+                key[0],
+                key[1],
+                key[2],
+            ),
+        )
+        for key in oldest[:excess]:
+            records.pop(key, None)
+        sanitized = True
+    return records, sanitized
+
+
+def _bounded_text(value: object, maximum: int) -> str:
+    """Return one bounded string value."""
+    return value[:maximum] if isinstance(value, str) else ""
+
+
+def _bounded_backend_outcomes(
+    result: Mapping[str, object],
+) -> tuple[list[dict[str, object]], bool]:
+    """Copy only the documented bounded grocery outcome fields."""
+    raw_outcomes = result.get("outcomes")
+    if not isinstance(raw_outcomes, list):
+        return [], False
+
+    outcomes: list[dict[str, object]] = []
+    for raw_outcome in raw_outcomes[:RECIPE_GROCERY_MAX_SELECTIONS]:
+        if not isinstance(raw_outcome, Mapping):
+            continue
+        position = raw_outcome.get("position")
+        bounded_position = (
+            position
+            if (
+                isinstance(position, int)
+                and not isinstance(position, bool)
+                and position >= 0
+            )
+            else None
+        )
+        amount_text = raw_outcome.get("amount_text")
+        outcomes.append(
+            {
+                "key": _bounded_text(
+                    raw_outcome.get("key"),
+                    RECIPE_INGREDIENT_KEY_MAX_LENGTH,
+                ),
+                "position": bounded_position,
+                "outcome": _bounded_text(raw_outcome.get("outcome"), 32),
+                "normalized_name": _bounded_text(
+                    raw_outcome.get("normalized_name"),
+                    200,
+                ),
+                "amount_text": (
+                    _bounded_text(amount_text, 160)
+                    if isinstance(amount_text, str)
+                    else None
+                ),
+            }
+        )
+    return outcomes, len(raw_outcomes) > RECIPE_GROCERY_MAX_SELECTIONS
+
+
+def _bounded_backend_summary(
+    result: Mapping[str, object],
+    outcomes: list[dict[str, object]],
+) -> dict[str, int]:
+    """Return the five documented bounded backend outcome counts."""
+    names = ("added", "already_listed", "now_in_stock", "unresolved", "failed")
+    counts = {name: 0 for name in names}
+    for outcome in outcomes:
+        name = outcome["outcome"]
+        if isinstance(name, str) and name in counts:
+            counts[name] += 1
+
+    raw_summary = result.get("summary")
+    if not isinstance(raw_summary, Mapping):
+        return counts
+    for name in names:
+        value = raw_summary.get(name)
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            counts[name] = min(value, RECIPE_GROCERY_MAX_SELECTIONS)
+    return counts
+
+
+def _normalize_todo_display_name(value: object) -> str:
+    """Normalize Unicode and whitespace while preserving display casing."""
+    if not isinstance(value, str):
+        return ""
+    normalized = unicodedata.normalize("NFKC", value)
+    return " ".join(normalized.split())
+
+
+def _normalize_todo_name(value: object) -> str:
+    """Normalize and case-fold one todo item name for deduplication."""
+    return _normalize_todo_display_name(value).casefold()[
+        :_MAX_RECIPE_MIRROR_NAME_LENGTH
+    ]
+
+
+def _todo_supports_description(
+    hass: HomeAssistant,
+    todo_entity_id: str,
+) -> bool:
+    """Return whether the target advertises safe todo description support."""
+    state = hass.states.get(todo_entity_id)
+    attributes = getattr(state, "attributes", None)
+    if not isinstance(attributes, Mapping):
+        return False
+    supported_features = attributes.get("supported_features", 0)
+    if isinstance(supported_features, bool) or not isinstance(
+        supported_features,
+        int,
+    ):
+        return False
+    return bool(
+        supported_features & int(TodoListEntityFeature.SET_DESCRIPTION_ON_ITEM)
+    )
+
+
+def _extract_pending_todo_names(
+    response: object,
+    todo_entity_id: str,
+) -> set[str]:
+    """Extract normalized pending summaries from todo.get_items."""
+    if not isinstance(response, Mapping):
+        raise ValueError("todo.get_items returned an invalid response")
+    entity_response = response.get(todo_entity_id)
+    if not isinstance(entity_response, Mapping):
+        raise ValueError("todo.get_items did not return the requested entity")
+    items = entity_response.get("items")
+    if not isinstance(items, list):
+        raise ValueError("todo.get_items returned an invalid item list")
+
+    pending: set[str] = set()
+    for item in items:
+        if not isinstance(item, Mapping):
+            continue
+        status = item.get("status")
+        if isinstance(status, str) and status != "needs_action":
+            continue
+        name = _normalize_todo_name(item.get("summary"))
+        if name:
+            pending.add(name)
+    return pending
+
+
+def _base_mirror_outcome(
+    backend_outcome: Mapping[str, object],
+) -> dict[str, object]:
+    """Return stable identity fields for one HA mirror outcome."""
+    return {
+        "key": backend_outcome.get("key", ""),
+        "position": backend_outcome.get("position"),
+        "name": backend_outcome.get("normalized_name", ""),
+        "backend_outcome": backend_outcome.get("outcome", ""),
+    }
+
+
+def _mirror_summary(outcomes: list[dict[str, object]]) -> dict[str, int]:
+    """Count bounded HA todo mirror outcomes."""
+    counts = {"added": 0, "already_present": 0, "skipped": 0, "failed": 0}
+    for outcome in outcomes:
+        name = outcome.get("outcome")
+        if isinstance(name, str) and name in counts:
+            counts[name] += 1
+    return counts
+
+
+def _todo_read_failure(
+    todo_entity_id: str,
+    backend_outcomes: list[dict[str, object]],
+    error: str,
+    message: str,
+) -> dict[str, object]:
+    """Return per-item failures when the pending todo list cannot be read."""
+    outcomes: list[dict[str, object]] = []
+    for backend_outcome in backend_outcomes:
+        outcome = _base_mirror_outcome(backend_outcome)
+        if backend_outcome.get("outcome") in ("added", "already_listed"):
+            outcome.update(
+                {
+                    "outcome": "failed",
+                    "error": error,
+                    "message": message,
+                }
+            )
+        else:
+            outcome.update(
+                {
+                    "outcome": "skipped",
+                    "reason": f"backend_{backend_outcome.get('outcome') or 'unknown'}",
+                }
+            )
+        outcomes.append(outcome)
+    return {
+        "success": False,
+        "todo_entity_id": todo_entity_id,
+        "error_kind": "unavailable",
+        "error": error,
+        "message": message,
+        "outcomes": outcomes,
+        "summary": _mirror_summary(outcomes),
+    }
+
+
+async def _async_mirror_recipe_groceries(
+    hass: HomeAssistant,
+    coordinator: EverShelfCoordinator,
+    runtime: _RecipeServiceRuntime,
+    todo_entity_id: str,
+    idempotency_key: str,
+    backend_replayed: bool,
+    backend_outcomes: list[dict[str, object]],
+    context: Context,
+    todo_response: object | None = None,
+) -> dict[str, object]:
+    """Mirror eligible backend outcomes to one user-facing HA todo entity."""
+    if not any(
+        outcome.get("outcome") in ("added", "already_listed")
+        for outcome in backend_outcomes
+    ):
+        outcomes: list[dict[str, object]] = []
+        for backend_outcome in backend_outcomes:
+            mirror_outcome = _base_mirror_outcome(backend_outcome)
+            mirror_outcome.update(
+                {
+                    "outcome": "skipped",
+                    "reason": (
+                        f"backend_{backend_outcome.get('outcome') or 'unknown'}"
+                    ),
+                }
+            )
+            outcomes.append(mirror_outcome)
+        return {
+            "success": True,
+            "todo_entity_id": todo_entity_id,
+            "description_supported": _todo_supports_description(
+                hass,
+                todo_entity_id,
+            ),
+            "outcomes": outcomes,
+            "summary": _mirror_summary(outcomes),
+        }
+
+    lock = runtime.locks.setdefault(todo_entity_id, asyncio.Lock())
+
+    async with lock:
+        replay_outcomes = (
+            await runtime.async_get_replay_outcomes(
+                coordinator.entry_id,
+                todo_entity_id,
+                idempotency_key,
+            )
+            if backend_replayed
+            else {}
+        )
+        if todo_response is None:
+            try:
+                todo_response = await hass.services.async_call(
+                    "todo",
+                    "get_items",
+                    {"status": ["needs_action"]},
+                    target={"entity_id": todo_entity_id},
+                    blocking=True,
+                    context=context,
+                    return_response=True,
+                )
+            except HomeAssistantError as err:
+                message = _bounded_text(
+                    str(err).strip(),
+                    _MAX_RECIPE_ERROR_LENGTH,
+                )
+                return _todo_read_failure(
+                    todo_entity_id,
+                    backend_outcomes,
+                    "todo_get_items_failed",
+                    message
+                    or "Could not read pending Home Assistant todo items",
+                )
+
+        try:
+            pending_names = _extract_pending_todo_names(
+                todo_response,
+                todo_entity_id,
+            )
+        except ValueError as err:
+            return _todo_read_failure(
+                todo_entity_id,
+                backend_outcomes,
+                "todo_get_items_invalid_response",
+                _bounded_text(str(err), _MAX_RECIPE_ERROR_LENGTH),
+            )
+
+        description_supported = _todo_supports_description(hass, todo_entity_id)
+        outcomes: list[dict[str, object]] = []
+        attempted: dict[str, dict[str, object]] = {}
+        successful_outcomes: dict[str, str] = {}
+
+        for backend_outcome in backend_outcomes:
+            mirror_outcome = _base_mirror_outcome(backend_outcome)
+            internal_outcome = backend_outcome.get("outcome")
+            if internal_outcome not in ("added", "already_listed"):
+                mirror_outcome.update(
+                    {
+                        "outcome": "skipped",
+                        "reason": f"backend_{internal_outcome or 'unknown'}",
+                    }
+                )
+                outcomes.append(mirror_outcome)
+                continue
+
+            display_name = _normalize_todo_display_name(
+                _bounded_text(
+                    backend_outcome.get("normalized_name"),
+                    200,
+                )
+            )
+            normalized_name = _normalize_todo_name(display_name)
+            if not normalized_name:
+                mirror_outcome.update(
+                    {
+                        "outcome": "failed",
+                        "error": "invalid_backend_item_name",
+                        "message": "EverShelf returned an empty grocery item name",
+                    }
+                )
+                outcomes.append(mirror_outcome)
+                continue
+
+            if normalized_name in attempted:
+                previous = attempted[normalized_name]
+                previous_outcome = previous.get("outcome")
+                if previous_outcome == "failed":
+                    mirror_outcome.update(
+                        {
+                            "outcome": "failed",
+                            "error": previous.get("error", "todo_add_item_failed"),
+                            "message": previous.get(
+                                "message",
+                                "The matching todo add failed",
+                            ),
+                            "reason": "duplicate_selection",
+                        }
+                    )
+                else:
+                    mirror_outcome.update(
+                        {
+                            "outcome": "already_present",
+                            "reason": "duplicate_selection",
+                        }
+                    )
+                outcomes.append(mirror_outcome)
+                continue
+
+            persisted_outcome = replay_outcomes.get(normalized_name)
+            if persisted_outcome is not None:
+                mirror_outcome.update(
+                    {
+                        "outcome": "already_present",
+                        "reason": "idempotent_replay",
+                    }
+                )
+                successful_outcomes[normalized_name] = persisted_outcome
+                attempted[normalized_name] = mirror_outcome
+                outcomes.append(mirror_outcome)
+                continue
+
+            if normalized_name in pending_names:
+                mirror_outcome.update(
+                    {
+                        "outcome": "already_present",
+                        "reason": "pending_item_exists",
+                    }
+                )
+                successful_outcomes[normalized_name] = "already_present"
+                attempted[normalized_name] = mirror_outcome
+                outcomes.append(mirror_outcome)
+                continue
+
+            service_data: dict[str, object] = {"item": display_name}
+            amount_text = backend_outcome.get("amount_text")
+            display_amount = _normalize_todo_display_name(amount_text)[:160]
+            if (
+                description_supported
+                and display_amount
+            ):
+                service_data["description"] = (
+                    f"Recipe source amount: {display_amount}"
+                )
+
+            try:
+                await hass.services.async_call(
+                    "todo",
+                    "add_item",
+                    service_data,
+                    target={"entity_id": todo_entity_id},
+                    blocking=True,
+                    context=context,
+                )
+            except HomeAssistantError as err:
+                message = _bounded_text(
+                    str(err).strip(),
+                    _MAX_RECIPE_ERROR_LENGTH,
+                )
+                mirror_outcome.update(
+                    {
+                        "outcome": "failed",
+                        "error": "todo_add_item_failed",
+                        "message": message or "Could not add Home Assistant todo item",
+                    }
+                )
+            else:
+                mirror_outcome["outcome"] = "added"
+                pending_names.add(normalized_name)
+                successful_outcomes[normalized_name] = "added"
+
+            attempted[normalized_name] = mirror_outcome
+            outcomes.append(mirror_outcome)
+
+        persistence_ok = await runtime.async_record_outcomes(
+            coordinator.entry_id,
+            todo_entity_id,
+            idempotency_key,
+            successful_outcomes,
+        )
+        summary = _mirror_summary(outcomes)
+        persistence_error = (
+            None
+            if persistence_ok
+            else (
+                "mirror_state_save_failed"
+                if runtime.loaded
+                else "mirror_state_load_failed"
+            )
+        )
+        response: dict[str, object] = {
+            "success": summary["failed"] == 0 and persistence_ok,
+            "todo_entity_id": todo_entity_id,
+            "description_supported": description_supported,
+            "outcomes": outcomes,
+            "summary": summary,
+            "replay_persistence": {
+                "status": "durable" if persistence_ok else "degraded",
+                "durable": persistence_ok,
+                **(
+                    {"reason": persistence_error}
+                    if persistence_error is not None
+                    else {}
+                ),
+            },
+        }
+        if not persistence_ok:
+            if runtime.dirty:
+                hass.data.setdefault(_RECIPE_SERVICE_RUNTIME_KEY, runtime)
+            response.update(
+                {
+                    "error_kind": "unavailable",
+                    "error": persistence_error,
+                    "message": (
+                        "Todo items were processed with pending-list "
+                        "deduplication, but durable replay safety is "
+                        "temporarily unavailable"
+                    ),
+                }
+            )
+        return response
 
 
 async def _get_expiry_image_base64(hass: HomeAssistant, call: ServiceCall) -> str:

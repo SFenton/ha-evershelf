@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.2] - 2026-08-12
+
+### Added
+- Response-only recipe browse, recommendation, hydration, detail, and grocery services with strict capability gates.
+- Idempotent EverShelf grocery mutation with a deduplicated Home Assistant todo mirror.
+- Bounded, TTL-limited replay persistence across integration reloads and Home Assistant restarts.
+
+### Changed
+- EverShelf credentials are sent only in the `X-API-Token` header.
+- Recipe capability probes preserve known-good support through transient backend failures.
+- Recipe grocery calls pre-authorize todo access and serialize an in-lock pending-list reread.
+
+### Fixed
+- Durable replay state now verifies the persisted Home Assistant storage payload.
+- Multiple EverShelf instances require an explicit config entry for grocery mutations.
+- Responsive recommendation limits pass through to EverShelf unchanged.
+
 ## [1.2.16] - 2026-07-31
 
 ### Added

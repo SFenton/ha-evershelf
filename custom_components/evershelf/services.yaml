@@ -124,6 +124,230 @@ list_inventory:
       selector:
         text:
 
+recipe_query:
+  name: Query Recipes
+  description: Return a compact, ranked EverShelf recipe page or the fixed recommendation carousel.
+  fields:
+    kind:
+      name: Query kind
+      description: Browse ranked recipes or return the 30-card recommendation set.
+      required: true
+      selector:
+        select:
+          options:
+            - label: Browse
+              value: browse
+            - label: Recommendations
+              value: recommendations
+    q:
+      name: Search
+      description: Search recipe titles and ingredient names.
+      required: false
+      selector:
+        text:
+    sort:
+      name: Sort
+      description: Dominant recipe ranking mode for browse results.
+      required: false
+      default: availability
+      selector:
+        select:
+          options:
+            - label: Ingredients available
+              value: availability
+            - label: Expiring soon
+              value: expiry
+            - label: Alphabetical
+              value: alphabetical
+    availability_weight:
+      name: Availability weight
+      description: Strength of the ingredients-available score.
+      required: false
+      default: 100
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
+    expiry_weight:
+      name: Expiry weight
+      description: Strength of the expiring-ingredient score.
+      required: false
+      default: 25
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
+    minimum_coverage:
+      name: Minimum coverage
+      description: Minimum percentage of required ingredients currently available.
+      required: false
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 5
+          mode: slider
+    expiring_within_days:
+      name: Expiring within
+      description: Only return recipes using an ingredient expiring within this many days.
+      required: false
+      selector:
+        number:
+          min: 1
+          max: 3650
+          step: 1
+          mode: box
+    source:
+      name: Source
+      description: Optional recipe connector filter.
+      required: false
+      selector:
+        text:
+    locale:
+      name: Locale
+      description: Optional recipe locale, such as en or en-GB.
+      required: false
+      selector:
+        text:
+    limit:
+      name: Page size
+      description: Number of compact recipe cards to return.
+      required: false
+      default: 50
+      selector:
+        number:
+          min: 1
+          max: 100
+          step: 1
+          mode: box
+    cursor:
+      name: Cursor
+      description: Opaque next-page cursor returned by an earlier browse response.
+      required: false
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+recipe_hydration:
+  name: Hydrate Recipe Search
+  description: Enqueue an idempotent Cookidoo search or poll an existing recipe search ID.
+  fields:
+    query:
+      name: Search
+      description: Search text to hydrate remotely. Provide this or Search ID, not both.
+      required: false
+      selector:
+        text:
+    search_id:
+      name: Search ID
+      description: Existing hydration search ID to poll. Provide this or Search, not both.
+      required: false
+      selector:
+        text:
+    source:
+      name: Source
+      description: Remote connector. Cookidoo is currently supported.
+      required: false
+      default: cookidoo
+      selector:
+        select:
+          options:
+            - label: Cookidoo
+              value: cookidoo
+    locale:
+      name: Locale
+      description: Optional remote recipe locale, such as en or en-GB.
+      required: false
+      selector:
+        text:
+    force:
+      name: Force refresh
+      description: Requeue an equivalent completed search even when it is still fresh.
+      required: false
+      default: false
+      selector:
+        boolean:
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+recipe_detail:
+  name: Get Recipe Detail
+  description: Return the bounded recipe_detail_v1 projection for one EverShelf recipe.
+  fields:
+    recipe_id:
+      name: Recipe ID
+      description: Positive EverShelf catalog recipe ID.
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    config_entry_id:
+      name: Config entry
+      description: Optional EverShelf config entry ID when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+recipe_grocery_add:
+  name: Add Recipe Groceries
+  description: Add selected missing ingredients to EverShelf, then deduplicate and mirror eligible items to a Home Assistant todo list.
+  fields:
+    recipe_id:
+      name: Recipe ID
+      description: Positive EverShelf catalog recipe ID.
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    selections:
+      name: Ingredient selections
+      description: One to 100 recipe ingredient objects containing a stable ri:<position>:<hash> key and optional nonnegative position.
+      required: true
+      example:
+        - key: "ri:2:0123456789abcdef"
+          position: 2
+      selector:
+        object:
+    idempotency_key:
+      name: Idempotency key
+      description: Stable 1-128 character client command key using letters, digits, dot, underscore, colon, or hyphen. Reuse it only for the same recipe and selections.
+      required: true
+      example: "ha-recipe-123-command-01"
+      selector:
+        text:
+    todo_entity_id:
+      name: Home Assistant todo list
+      description: User-facing todo list to mirror eligible items into. Defaults to todo.shopping_list.
+      required: false
+      default: todo.shopping_list
+      selector:
+        entity:
+          domain: todo
+    config_entry_id:
+      name: Config entry
+      description: EverShelf config entry ID. Required when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 delete_inventory:
   name: Delete Inventory Row
   description: Delete all or part of a specific EverShelf inventory row by inventory ID.

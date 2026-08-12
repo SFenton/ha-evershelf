@@ -242,6 +242,55 @@
       "name": "Clear Expired",
       "description": "Remove expired zero-stock inventory rows from EverShelf."
     },
+    "recipe_query": {
+      "name": "Query Recipes",
+      "description": "Return compact ranked recipes or the fixed recommendation carousel.",
+      "fields": {
+        "kind": {"name": "Query kind", "description": "Browse recipes or return recommendations."},
+        "q": {"name": "Search", "description": "Search recipe titles and ingredient names."},
+        "sort": {"name": "Sort", "description": "Dominant recipe ranking mode."},
+        "availability_weight": {"name": "Availability weight", "description": "Strength of the ingredients-available score."},
+        "expiry_weight": {"name": "Expiry weight", "description": "Strength of the expiring-ingredient score."},
+        "minimum_coverage": {"name": "Minimum coverage", "description": "Minimum percentage of required ingredients available."},
+        "expiring_within_days": {"name": "Expiring within", "description": "Only include recipes using food expiring within this many days."},
+        "source": {"name": "Source", "description": "Optional recipe connector filter."},
+        "locale": {"name": "Locale", "description": "Optional recipe locale."},
+        "limit": {"name": "Page size", "description": "Number of recipe cards to return."},
+        "cursor": {"name": "Cursor", "description": "Opaque next-page cursor."},
+        "config_entry_id": {"name": "Config entry", "description": "Optional EverShelf config entry ID."}
+      }
+    },
+    "recipe_hydration": {
+      "name": "Hydrate Recipe Search",
+      "description": "Enqueue an idempotent Cookidoo search or poll an existing search.",
+      "fields": {
+        "query": {"name": "Search", "description": "Search text to hydrate remotely."},
+        "search_id": {"name": "Search ID", "description": "Existing hydration search ID to poll."},
+        "source": {"name": "Source", "description": "Remote recipe connector."},
+        "locale": {"name": "Locale", "description": "Optional remote recipe locale."},
+        "force": {"name": "Force refresh", "description": "Requeue an equivalent completed search."},
+        "config_entry_id": {"name": "Config entry", "description": "Optional EverShelf config entry ID."}
+      }
+    },
+    "recipe_detail": {
+      "name": "Get Recipe Detail",
+      "description": "Return the bounded recipe detail projection for one EverShelf recipe.",
+      "fields": {
+        "recipe_id": {"name": "Recipe ID", "description": "Positive EverShelf catalog recipe ID."},
+        "config_entry_id": {"name": "Config entry", "description": "Optional EverShelf config entry ID."}
+      }
+    },
+    "recipe_grocery_add": {
+      "name": "Add Recipe Groceries",
+      "description": "Add selected missing ingredients to EverShelf and mirror eligible items to a Home Assistant todo list.",
+      "fields": {
+        "recipe_id": {"name": "Recipe ID", "description": "Positive EverShelf catalog recipe ID."},
+        "selections": {"name": "Ingredient selections", "description": "One to 100 ingredient key and optional position objects."},
+        "idempotency_key": {"name": "Idempotency key", "description": "Stable client command key for this recipe selection."},
+        "todo_entity_id": {"name": "Home Assistant todo list", "description": "User-facing todo list that receives deduplicated eligible items."},
+        "config_entry_id": {"name": "Config entry", "description": "Required when multiple EverShelf instances are configured."}
+      }
+    },
     "suggest_location": {
       "name": "Suggest Storage Location",
       "description": "Return the previous storage location for an exact barcode or manually entered product name, otherwise use EverShelf's background AI classifier.",

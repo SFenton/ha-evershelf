@@ -5,19 +5,15 @@ from typing import Any
 
 
 def evershelf_headers(token: str = "", *, json_body: bool = False) -> dict[str, str]:
-    """Headers accepted by EverShelf API (X-API-Token, Bearer, CSRF)."""
+    """Return EverShelf headers with credentials only in X-API-Token."""
     headers: dict[str, str] = {"X-EverShelf-Request": "1"}
     if json_body:
         headers["Content-Type"] = "application/json"
     if token:
         headers["X-API-Token"] = token
-        headers["Authorization"] = f"Bearer {token}"
     return headers
 
 
 def evershelf_params(token: str = "", params: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Query params with optional api_token (for HA / SSE clients)."""
-    out = dict(params or {})
-    if token:
-        out["api_token"] = token
-    return out
+    """Return query params without placing credentials in URLs or access logs."""
+    return dict(params or {})

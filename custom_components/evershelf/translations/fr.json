@@ -242,6 +242,55 @@
       "name": "Effacer les expirés",
       "description": "Supprimer les lignes d'inventaire expirées avec quantité nulle."
     },
+    "recipe_query": {
+      "name": "Rechercher des recettes",
+      "description": "Renvoie des recettes classées compactes ou le carrousel fixe de recommandations.",
+      "fields": {
+        "kind": {"name": "Type de requête", "description": "Parcourir les recettes ou renvoyer les recommandations."},
+        "q": {"name": "Recherche", "description": "Rechercher dans les titres et les ingrédients."},
+        "sort": {"name": "Tri", "description": "Mode de classement dominant."},
+        "availability_weight": {"name": "Poids de disponibilité", "description": "Force du score des ingrédients disponibles."},
+        "expiry_weight": {"name": "Poids d'expiration", "description": "Force du score des ingrédients bientôt expirés."},
+        "minimum_coverage": {"name": "Couverture minimale", "description": "Pourcentage minimal d'ingrédients requis disponibles."},
+        "expiring_within_days": {"name": "Expire dans", "description": "Uniquement les recettes utilisant des aliments expirant dans ce délai."},
+        "source": {"name": "Source", "description": "Filtre facultatif du connecteur de recettes."},
+        "locale": {"name": "Paramètres régionaux", "description": "Paramètres régionaux facultatifs des recettes."},
+        "limit": {"name": "Taille de page", "description": "Nombre de cartes de recette."},
+        "cursor": {"name": "Curseur", "description": "Curseur opaque de la page suivante."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "ID facultatif de l'entrée EverShelf."}
+      }
+    },
+    "recipe_hydration": {
+      "name": "Hydrater la recherche de recettes",
+      "description": "Met en file une recherche Cookidoo idempotente ou consulte son état.",
+      "fields": {
+        "query": {"name": "Recherche", "description": "Texte à rechercher dans la source distante."},
+        "search_id": {"name": "ID de recherche", "description": "ID de recherche existant à consulter."},
+        "source": {"name": "Source", "description": "Connecteur de recettes distant."},
+        "locale": {"name": "Paramètres régionaux", "description": "Paramètres régionaux facultatifs."},
+        "force": {"name": "Forcer l'actualisation", "description": "Remettre en file une recherche équivalente terminée."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "ID facultatif de l'entrée EverShelf."}
+      }
+    },
+    "recipe_detail": {
+      "name": "Obtenir le détail de la recette",
+      "description": "Renvoyer la projection bornée du détail d'une recette EverShelf.",
+      "fields": {
+        "recipe_id": {"name": "ID de recette", "description": "ID positif de recette du catalogue EverShelf."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "ID facultatif de l'entrée EverShelf."}
+      }
+    },
+    "recipe_grocery_add": {
+      "name": "Ajouter les ingrédients de la recette",
+      "description": "Ajouter les ingrédients manquants sélectionnés à EverShelf et recopier les éléments admissibles dans une liste de tâches Home Assistant.",
+      "fields": {
+        "recipe_id": {"name": "ID de recette", "description": "ID positif de recette du catalogue EverShelf."},
+        "selections": {"name": "Sélections d'ingrédients", "description": "Un à 100 objets avec clé d'ingrédient et position facultative."},
+        "idempotency_key": {"name": "Clé d'idempotence", "description": "Clé de commande client stable pour cette sélection."},
+        "todo_entity_id": {"name": "Liste de tâches Home Assistant", "description": "Liste utilisateur recevant les éléments admissibles dédupliqués."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "Obligatoire lorsque plusieurs instances EverShelf sont configurées."}
+      }
+    },
     "suggest_location": {
       "name": "Suggérer un emplacement",
       "description": "Renvoie l'emplacement précédent pour un code-barres exact ou un nom saisi manuellement, sinon utilise l'IA EverShelf.",

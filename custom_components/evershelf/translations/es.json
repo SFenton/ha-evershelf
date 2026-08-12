@@ -242,6 +242,55 @@
       "name": "Limpiar caducados",
       "description": "Eliminar filas de inventario caducadas con cantidad cero."
     },
+    "recipe_query": {
+      "name": "Consultar recetas",
+      "description": "Devuelve recetas compactas clasificadas o el carrusel fijo de recomendaciones.",
+      "fields": {
+        "kind": {"name": "Tipo de consulta", "description": "Explorar recetas o devolver recomendaciones."},
+        "q": {"name": "Buscar", "description": "Buscar en títulos e ingredientes."},
+        "sort": {"name": "Orden", "description": "Modo de clasificación dominante."},
+        "availability_weight": {"name": "Peso de disponibilidad", "description": "Fuerza de la puntuación de ingredientes disponibles."},
+        "expiry_weight": {"name": "Peso de caducidad", "description": "Fuerza de la puntuación de ingredientes próximos a caducar."},
+        "minimum_coverage": {"name": "Cobertura mínima", "description": "Porcentaje mínimo de ingredientes obligatorios disponibles."},
+        "expiring_within_days": {"name": "Caduca dentro de", "description": "Solo recetas con alimentos que caducan dentro de estos días."},
+        "source": {"name": "Fuente", "description": "Filtro opcional del conector de recetas."},
+        "locale": {"name": "Configuración regional", "description": "Configuración regional opcional de recetas."},
+        "limit": {"name": "Tamaño de página", "description": "Número de tarjetas de receta."},
+        "cursor": {"name": "Cursor", "description": "Cursor opaco para la página siguiente."},
+        "config_entry_id": {"name": "Entrada de configuración", "description": "ID opcional de la entrada EverShelf."}
+      }
+    },
+    "recipe_hydration": {
+      "name": "Hidratar búsqueda de recetas",
+      "description": "Encola una búsqueda idempotente de Cookidoo o consulta su estado.",
+      "fields": {
+        "query": {"name": "Buscar", "description": "Texto para buscar en la fuente remota."},
+        "search_id": {"name": "ID de búsqueda", "description": "ID existente que se debe consultar."},
+        "source": {"name": "Fuente", "description": "Conector remoto de recetas."},
+        "locale": {"name": "Configuración regional", "description": "Configuración regional opcional."},
+        "force": {"name": "Forzar actualización", "description": "Vuelve a encolar una búsqueda equivalente completada."},
+        "config_entry_id": {"name": "Entrada de configuración", "description": "ID opcional de la entrada EverShelf."}
+      }
+    },
+    "recipe_detail": {
+      "name": "Obtener detalle de receta",
+      "description": "Devuelve la proyección acotada de detalle para una receta de EverShelf.",
+      "fields": {
+        "recipe_id": {"name": "ID de receta", "description": "ID positivo de receta del catálogo EverShelf."},
+        "config_entry_id": {"name": "Entrada de configuración", "description": "ID opcional de la entrada EverShelf."}
+      }
+    },
+    "recipe_grocery_add": {
+      "name": "Añadir ingredientes de receta",
+      "description": "Añade los ingredientes faltantes seleccionados a EverShelf y refleja los aptos en una lista de tareas de Home Assistant.",
+      "fields": {
+        "recipe_id": {"name": "ID de receta", "description": "ID positivo de receta del catálogo EverShelf."},
+        "selections": {"name": "Selecciones de ingredientes", "description": "De uno a 100 objetos con clave de ingrediente y posición opcional."},
+        "idempotency_key": {"name": "Clave de idempotencia", "description": "Clave estable del comando cliente para esta selección."},
+        "todo_entity_id": {"name": "Lista de tareas de Home Assistant", "description": "Lista del usuario que recibe elementos aptos sin duplicados."},
+        "config_entry_id": {"name": "Entrada de configuración", "description": "Obligatorio cuando hay varias instancias de EverShelf."}
+      }
+    },
     "suggest_location": {
       "name": "Sugerir ubicación de almacenamiento",
       "description": "Devuelve la ubicación anterior para un código de barras exacto o un nombre introducido manualmente; en caso contrario usa la IA de EverShelf.",
