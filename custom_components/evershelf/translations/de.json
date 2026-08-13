@@ -280,6 +280,60 @@
         "config_entry_id": {"name": "Konfigurationseintrag", "description": "Optionale EverShelf-Konfigurationseintrags-ID."}
       }
     },
+    "recipe_ingredient_override": {
+      "name": "Verfügbarkeit einer Rezeptzutat überschreiben",
+      "description": "Eine reine Anzeigeüberschreibung speichern, ohne Bestand oder Bewertung zu ändern.",
+      "fields": {
+        "recipe_id": {"name": "Rezept-ID", "description": "Positive EverShelf-Rezept-ID."},
+        "ingredient_key": {"name": "Zutatenschlüssel", "description": "Stabiler Schlüssel aus den Rezeptdetails."},
+        "position": {"name": "Position", "description": "Nichtnegative Zutatenposition."},
+        "availability": {"name": "Verfügbarkeit", "description": "Vorhanden, fehlt oder zurücksetzen."},
+        "feedback_token": {"name": "Feedback-Token", "description": "Aktuelles undurchsichtiges Evidenz-Token."},
+        "idempotency_key": {"name": "Idempotenzschlüssel", "description": "Stabiler Befehlsschlüssel."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Bei mehreren EverShelf-Instanzen erforderlich."}
+      }
+    },
+    "recipe_identity_feedback": {
+      "name": "Rückmeldung zur Zutatenzuordnung",
+      "description": "Richtig- oder Falsch-Rückmeldung als nur vorgeschlagene Ontologie-Evidenz speichern.",
+      "fields": {
+        "recipe_id": {"name": "Rezept-ID", "description": "Positive EverShelf-Rezept-ID."},
+        "ingredient_key": {"name": "Zutatenschlüssel", "description": "Stabiler Schlüssel aus den Rezeptdetails."},
+        "position": {"name": "Position", "description": "Nichtnegative Zutatenposition."},
+        "verdict": {"name": "Bewertung", "description": "Richtig oder falsch."},
+        "target_kind": {"name": "Ziel", "description": "Bestandsprodukt oder nächste Zuordnung."},
+        "feedback_token": {"name": "Feedback-Token", "description": "Aktuelles undurchsichtiges Evidenz-Token."},
+        "idempotency_key": {"name": "Idempotenzschlüssel", "description": "Stabiler Befehlsschlüssel."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Bei mehreren EverShelf-Instanzen erforderlich."}
+      }
+    },
+    "recipe_ingredient_decision": {
+      "name": "Rezeptzutat entscheiden",
+      "description": "Anzeigeverfügbarkeit und optionale produktgebundene Identität atomar speichern.",
+      "fields": {
+        "recipe_id": {"name": "Rezept-ID", "description": "Positive EverShelf-Katalogrezept-ID."},
+        "ingredient_key": {"name": "Zutatenschlüssel", "description": "Stabiler Schlüssel aus den Rezeptdetails."},
+        "position": {"name": "Position", "description": "Nichtnegative Zutatenposition."},
+        "action": {"name": "Entscheidung", "description": "Vorhanden annehmen, Bestandsprodukt auswählen oder aktuelle Zuordnung ablehnen."},
+        "selected_product_id": {"name": "Ausgewählte Produkt-ID", "description": "Exakte vorrätige Produkt-ID für eine positive Auswahl."},
+        "expected_target_product_id": {"name": "Erwartete Zielprodukt-ID", "description": "Exakte angezeigte Produkt-ID für eine Ablehnung."},
+        "feedback_token": {"name": "Feedback-Token", "description": "Aktuelles Evidenz-Token der aktiven Bewertung."},
+        "idempotency_key": {"name": "Idempotenzschlüssel", "description": "Stabiler Befehlsschlüssel; nach unklarem Fehler wiederverwenden."},
+        "action_origin": {"name": "Aktionsursprung", "description": "Vertrauenswürdige UI- oder Operatorquelle."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Bei mehreren EverShelf-Instanzen erforderlich."}
+      }
+    },
+    "recipe_planner_add": {
+      "name": "Rezept zu Meine Woche hinzufügen",
+      "description": "Ein Cookidoo-Rezept im konfigurierten Kontoplaner einem Datum zuweisen, nicht direkt einem Gerät.",
+      "fields": {
+        "recipe_id": {"name": "Rezept-ID", "description": "EverShelf-Rezept-ID; die Anbieter-ID wird serverseitig ermittelt."},
+        "date": {"name": "Datum", "description": "ISO-Datum von heute bis 365 Tage."},
+        "provider_action_token": {"name": "Anbieteraktions-Token", "description": "Undurchsichtiges Rezept-/Ursprungs-/Revisions-Token."},
+        "idempotency_key": {"name": "Idempotenzschlüssel", "description": "Stabiler Befehlsschlüssel; nach unklarem Fehler wiederverwenden."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Bei mehreren EverShelf-Instanzen erforderlich."}
+      }
+    },
     "recipe_grocery_add": {
       "name": "Rezeptzutaten hinzufügen",
       "description": "Ausgewählte fehlende Zutaten zu EverShelf hinzufügen und geeignete Einträge in eine Home-Assistant-Aufgabenliste spiegeln.",

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import date, datetime, timedelta, timezone
 import re
 from typing import Any
 
@@ -12,6 +13,17 @@ RECIPE_INGREDIENT_KEY_MAX_LENGTH = 64
 RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH = 128
 RECIPE_INGREDIENT_KEY_PATTERN = re.compile(r"^ri:\d+:[a-f0-9]{16}$")
 RECIPE_IDEMPOTENCY_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]+$")
+RECIPE_FEEDBACK_TOKEN_PATTERN = re.compile(r"^[a-f0-9]{64}$")
+RECIPE_INGREDIENT_DECISION_ACTIONS = (
+    "assume_have",
+    "select_inventory_product",
+    "reject_current_match",
+)
+RECIPE_INGREDIENT_ACTION_ORIGINS = (
+    "home_assistant",
+    "react_dashboard",
+    "operator",
+)
 
 
 def _positive_int(value: object, field: str) -> int:
@@ -85,6 +97,153 @@ def recipe_grocery_add_request(
         {
             "recipe_id": recipe_id,
             "selections": selections,
+            "idempotency_key": idempotency_key,
+        },
+    )
+
+
+def _recipe_feedback_base(
+    data: Mapping[str, object],
+) -> dict[str, object]:
+    recipe_id = _positive_int(data.get("recipe_id"), "recipe_id")
+    position = data.get("position")
+    if isinstance(position, bool) or not isinstance(position, int) or position < 0:
+        raise ValueError("position must be a nonnegative integer")
+    key_value = data.get("ingredient_key")
+    if not isinstance(key_value, str):
+        raise ValueError("ingredient_key must be a string")
+    ingredient_key = key_value.strip()
+    if (
+        not ingredient_key
+        or len(ingredient_key) > RECIPE_INGREDIENT_KEY_MAX_LENGTH
+        or RECIPE_INGREDIENT_KEY_PATTERN.fullmatch(ingredient_key) is None
+    ):
+        raise ValueError("ingredient_key is invalid")
+    token_value = data.get("feedback_token")
+    if not isinstance(token_value, str):
+        raise ValueError("feedback_token must be a string")
+    feedback_token = token_value.strip()
+    if RECIPE_FEEDBACK_TOKEN_PATTERN.fullmatch(feedback_token) is None:
+        raise ValueError("feedback_token is invalid")
+    idempotency_value = data.get("idempotency_key")
+    if not isinstance(idempotency_value, str):
+        raise ValueError("idempotency_key must be a string")
+    idempotency_key = idempotency_value.strip()
+    if (
+        not idempotency_key
+        or len(idempotency_key) > RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH
+        or RECIPE_IDEMPOTENCY_KEY_PATTERN.fullmatch(idempotency_key) is None
+    ):
+        raise ValueError("idempotency_key is invalid")
+    return {
+        "recipe_id": recipe_id,
+        "ingredient_key": ingredient_key,
+        "position": position,
+        "feedback_token": feedback_token,
+        "idempotency_key": idempotency_key,
+    }
+
+
+def recipe_ingredient_override_request(
+    data: Mapping[str, object],
+) -> tuple[str, str, dict[str, object]]:
+    """Return the bounded availability-override request."""
+    payload = _recipe_feedback_base(data)
+    availability = str(data.get("availability", "")).strip().lower()
+    if availability not in {"have", "missing", "clear"}:
+        raise ValueError("availability is invalid")
+    payload["availability"] = availability
+    return "POST", "recipe_catalog_ingredient_override", payload
+
+
+def recipe_identity_feedback_request(
+    data: Mapping[str, object],
+) -> tuple[str, str, dict[str, object]]:
+    """Return the bounded explicit identity-feedback request."""
+    payload = _recipe_feedback_base(data)
+    verdict = str(data.get("verdict", "")).strip().lower()
+    target_kind = str(data.get("target_kind", "")).strip().lower()
+    if verdict not in {"correct", "wrong"}:
+        raise ValueError("verdict is invalid")
+    if target_kind not in {"matched_product", "closest_match"}:
+        raise ValueError("target_kind is invalid")
+    payload["verdict"] = verdict
+    payload["target_kind"] = target_kind
+    return "POST", "recipe_catalog_identity_feedback", payload
+
+
+def recipe_ingredient_decision_request(
+    data: Mapping[str, object],
+) -> tuple[str, str, dict[str, object]]:
+    """Return the atomic ingredient decision v2 request."""
+    payload = _recipe_feedback_base(data)
+    action = str(data.get("action", "")).strip().lower()
+    if action not in RECIPE_INGREDIENT_DECISION_ACTIONS:
+        raise ValueError("action is invalid")
+    origin = str(data.get("action_origin", "home_assistant")).strip().lower()
+    if origin not in RECIPE_INGREDIENT_ACTION_ORIGINS:
+        raise ValueError("action_origin is invalid")
+    payload["action"] = action
+    payload["action_origin"] = origin
+    if action == "select_inventory_product":
+        payload["selected_product_id"] = _positive_int(
+            data.get("selected_product_id"),
+            "selected_product_id",
+        )
+    elif "selected_product_id" in data:
+        raise ValueError("selected_product_id is invalid for this action")
+    if action == "reject_current_match":
+        expected = data.get("expected_target_product_id")
+        if expected is not None:
+            payload["expected_target_product_id"] = _positive_int(
+                expected,
+                "expected_target_product_id",
+            )
+    elif "expected_target_product_id" in data:
+        raise ValueError(
+            "expected_target_product_id is invalid for this action"
+        )
+    return "POST", "recipe_catalog_ingredient_decision", payload
+
+
+def recipe_planner_add_request(
+    data: Mapping[str, object],
+) -> tuple[str, str, dict[str, object]]:
+    """Return the bounded account-level Cookidoo planner request."""
+    recipe_id = _positive_int(data.get("recipe_id"), "recipe_id")
+    date_value = data.get("date")
+    if not isinstance(date_value, str):
+        raise ValueError("date must be an ISO date")
+    try:
+        planned_date = date.fromisoformat(date_value.strip())
+    except ValueError as err:
+        raise ValueError("date must be an ISO date") from err
+    today = datetime.now(timezone.utc).date()
+    if planned_date < today or planned_date > today + timedelta(days=365):
+        raise ValueError("date is outside the allowed range")
+    token_value = data.get("provider_action_token")
+    if not isinstance(token_value, str):
+        raise ValueError("provider_action_token must be a string")
+    token = token_value.strip()
+    if RECIPE_FEEDBACK_TOKEN_PATTERN.fullmatch(token) is None:
+        raise ValueError("provider_action_token is invalid")
+    idempotency_value = data.get("idempotency_key")
+    if not isinstance(idempotency_value, str):
+        raise ValueError("idempotency_key must be a string")
+    idempotency_key = idempotency_value.strip()
+    if (
+        not idempotency_key
+        or len(idempotency_key) > RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH
+        or RECIPE_IDEMPOTENCY_KEY_PATTERN.fullmatch(idempotency_key) is None
+    ):
+        raise ValueError("idempotency_key is invalid")
+    return (
+        "POST",
+        "recipe_catalog_planner_add",
+        {
+            "recipe_id": recipe_id,
+            "date": planned_date.isoformat(),
+            "provider_action_token": token,
             "idempotency_key": idempotency_key,
         },
     )

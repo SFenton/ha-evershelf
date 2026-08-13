@@ -280,6 +280,60 @@
         "config_entry_id": {"name": "Voce di configurazione", "description": "ID opzionale della voce EverShelf."}
       }
     },
+    "recipe_ingredient_override": {
+      "name": "Sovrascrivi disponibilità ingrediente",
+      "description": "Salva una sovrascrittura solo visiva senza modificare inventario o punteggio.",
+      "fields": {
+        "recipe_id": {"name": "ID ricetta", "description": "ID positivo della ricetta EverShelf."},
+        "ingredient_key": {"name": "Chiave ingrediente", "description": "Chiave stabile dai dettagli ricetta."},
+        "position": {"name": "Posizione", "description": "Posizione non negativa."},
+        "availability": {"name": "Disponibilità", "description": "Disponibile, mancante o cancella."},
+        "feedback_token": {"name": "Token evidenza", "description": "Token opaco corrente dell'ingrediente."},
+        "idempotency_key": {"name": "Chiave di idempotenza", "description": "Chiave stabile del comando."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "Obbligatoria con più istanze EverShelf."}
+      }
+    },
+    "recipe_identity_feedback": {
+      "name": "Registra feedback corrispondenza ingrediente",
+      "description": "Registra corretto o errato come evidenza solo proposta per l'ontologia.",
+      "fields": {
+        "recipe_id": {"name": "ID ricetta", "description": "ID positivo della ricetta EverShelf."},
+        "ingredient_key": {"name": "Chiave ingrediente", "description": "Chiave stabile dai dettagli ricetta."},
+        "position": {"name": "Posizione", "description": "Posizione non negativa."},
+        "verdict": {"name": "Verdetto", "description": "Corretto o errato."},
+        "target_kind": {"name": "Destinazione", "description": "Prodotto abbinato o corrispondenza più vicina."},
+        "feedback_token": {"name": "Token evidenza", "description": "Token opaco corrente dell'ingrediente."},
+        "idempotency_key": {"name": "Chiave di idempotenza", "description": "Chiave stabile del comando."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "Obbligatoria con più istanze EverShelf."}
+      }
+    },
+    "recipe_ingredient_decision": {
+      "name": "Decidi ingrediente ricetta",
+      "description": "Salva atomicamente la disponibilità mostrata e l’evidenza di identità legata al prodotto.",
+      "fields": {
+        "recipe_id": {"name": "ID ricetta", "description": "ID positivo della ricetta nel catalogo EverShelf."},
+        "ingredient_key": {"name": "Chiave ingrediente", "description": "Chiave stabile dai dettagli della ricetta."},
+        "position": {"name": "Posizione", "description": "Posizione non negativa dell’ingrediente."},
+        "action": {"name": "Decisione", "description": "Presumi disponibile, seleziona un prodotto o rifiuta l’abbinamento corrente."},
+        "selected_product_id": {"name": "ID prodotto selezionato", "description": "ID esatto di un prodotto disponibile per una selezione positiva."},
+        "expected_target_product_id": {"name": "ID prodotto previsto", "description": "ID esatto mostrato per un rifiuto."},
+        "feedback_token": {"name": "Token feedback", "description": "Token corrente di evidenza legato al punteggio attivo."},
+        "idempotency_key": {"name": "Chiave di idempotenza", "description": "Chiave stabile da riutilizzare dopo un errore ambiguo."},
+        "action_origin": {"name": "Origine azione", "description": "Origine attendibile dell’interfaccia o dell’operatore."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "Obbligatoria con più istanze EverShelf."}
+      }
+    },
+    "recipe_planner_add": {
+      "name": "Aggiungi ricetta a La mia settimana",
+      "description": "Assegna una ricetta Cookidoo a una data del pianificatore dell’account, non direttamente a un dispositivo.",
+      "fields": {
+        "recipe_id": {"name": "ID ricetta", "description": "ID EverShelf; l’ID provider viene risolto dal server."},
+        "date": {"name": "Data", "description": "Data ISO da oggi fino a 365 giorni."},
+        "provider_action_token": {"name": "Token azione provider", "description": "Token opaco di ricetta, origine e revisione."},
+        "idempotency_key": {"name": "Chiave di idempotenza", "description": "Chiave stabile da riutilizzare dopo un errore ambiguo."},
+        "config_entry_id": {"name": "Voce di configurazione", "description": "Obbligatoria con più istanze EverShelf."}
+      }
+    },
     "recipe_grocery_add": {
       "name": "Aggiungi ingredienti ricetta",
       "description": "Aggiunge a EverShelf gli ingredienti mancanti selezionati e copia quelli idonei in una lista attività di Home Assistant.",

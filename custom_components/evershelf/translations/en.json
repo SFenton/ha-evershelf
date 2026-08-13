@@ -280,6 +280,60 @@
         "config_entry_id": {"name": "Config entry", "description": "Optional EverShelf config entry ID."}
       }
     },
+    "recipe_ingredient_override": {
+      "name": "Override Recipe Ingredient Availability",
+      "description": "Persist a display-only availability override without changing inventory or scoring.",
+      "fields": {
+        "recipe_id": {"name": "Recipe ID", "description": "Positive EverShelf catalog recipe ID."},
+        "ingredient_key": {"name": "Ingredient key", "description": "Stable ingredient key from recipe detail."},
+        "position": {"name": "Position", "description": "Nonnegative ingredient position."},
+        "availability": {"name": "Availability", "description": "Have, missing, or clear."},
+        "feedback_token": {"name": "Feedback token", "description": "Current opaque ingredient evidence token."},
+        "idempotency_key": {"name": "Idempotency key", "description": "Stable command key for this request."},
+        "config_entry_id": {"name": "Config entry", "description": "Required when multiple EverShelf instances are configured."}
+      }
+    },
+    "recipe_identity_feedback": {
+      "name": "Record Recipe Ingredient Match Feedback",
+      "description": "Record correct or wrong feedback as proposal-only ontology evidence.",
+      "fields": {
+        "recipe_id": {"name": "Recipe ID", "description": "Positive EverShelf catalog recipe ID."},
+        "ingredient_key": {"name": "Ingredient key", "description": "Stable ingredient key from recipe detail."},
+        "position": {"name": "Position", "description": "Nonnegative ingredient position."},
+        "verdict": {"name": "Verdict", "description": "Correct or wrong."},
+        "target_kind": {"name": "Target", "description": "Matched product or closest match."},
+        "feedback_token": {"name": "Feedback token", "description": "Current opaque ingredient evidence token."},
+        "idempotency_key": {"name": "Idempotency key", "description": "Stable command key for this request."},
+        "config_entry_id": {"name": "Config entry", "description": "Required when multiple EverShelf instances are configured."}
+      }
+    },
+    "recipe_ingredient_decision": {
+      "name": "Decide Recipe Ingredient",
+      "description": "Atomically update display availability and optional exact product-bound identity evidence.",
+      "fields": {
+        "recipe_id": {"name": "Recipe ID", "description": "Positive EverShelf catalog recipe ID."},
+        "ingredient_key": {"name": "Ingredient key", "description": "Stable ingredient key from recipe detail."},
+        "position": {"name": "Position", "description": "Nonnegative ingredient position."},
+        "action": {"name": "Decision", "description": "Assume have, select an inventory product, or reject the current match."},
+        "selected_product_id": {"name": "Selected product ID", "description": "Exact stocked product ID for positive selection."},
+        "expected_target_product_id": {"name": "Expected target product ID", "description": "Exact displayed product ID for a rejection."},
+        "feedback_token": {"name": "Feedback token", "description": "Current active-score ingredient evidence token."},
+        "idempotency_key": {"name": "Idempotency key", "description": "Stable command key; reuse after ambiguous failure."},
+        "action_origin": {"name": "Action origin", "description": "Trusted UI or operator origin."},
+        "config_entry_id": {"name": "Config entry", "description": "Required when multiple EverShelf instances are configured."}
+      }
+    },
+    "recipe_planner_add": {
+      "name": "Add Recipe to My Week",
+      "description": "Assign a Cookidoo recipe to a date in the configured account planner, not directly to a device.",
+      "fields": {
+        "recipe_id": {"name": "Recipe ID", "description": "EverShelf recipe ID; the provider ID is resolved server-side."},
+        "date": {"name": "Date", "description": "ISO date from today through 365 days."},
+        "provider_action_token": {"name": "Provider action token", "description": "Opaque recipe/origin/catalog revision token."},
+        "idempotency_key": {"name": "Idempotency key", "description": "Stable command key; reuse after ambiguous failure."},
+        "config_entry_id": {"name": "Config entry", "description": "Required when multiple EverShelf instances are configured."}
+      }
+    },
     "recipe_grocery_add": {
       "name": "Add Recipe Groceries",
       "description": "Add selected missing ingredients to EverShelf and mirror eligible items to a Home Assistant todo list.",

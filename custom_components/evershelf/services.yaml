@@ -304,6 +304,252 @@ recipe_detail:
       selector:
         text:
 
+recipe_ingredient_override:
+  name: Override Recipe Ingredient Availability
+  description: Persist a display-only have/missing override for one revision-bound recipe ingredient without changing inventory, scoring, or grocery eligibility.
+  fields:
+    recipe_id:
+      name: Recipe ID
+      description: Positive EverShelf catalog recipe ID.
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    ingredient_key:
+      name: Ingredient key
+      description: Stable ri:<position>:<hash> key from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    position:
+      name: Ingredient position
+      description: Nonnegative source position from recipe_detail_v1.
+      required: true
+      selector:
+        number:
+          min: 0
+          step: 1
+          mode: box
+    availability:
+      name: Availability override
+      description: Mark the row as have or missing for display, or clear to restore the EverShelf result.
+      required: true
+      selector:
+        select:
+          options:
+            - have
+            - missing
+            - clear
+    feedback_token:
+      name: Feedback token
+      description: Current opaque ingredient evidence token from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    idempotency_key:
+      name: Idempotency key
+      description: Stable 1-128 character command key. Reuse it only for the same override request.
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: EverShelf config entry ID. Required when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+recipe_identity_feedback:
+  name: Record Recipe Ingredient Match Feedback
+  description: Record explicit correct/wrong feedback for the matched product or closest identity label. Feedback settles into proposal-only ontology evidence and never applies automatically.
+  fields:
+    recipe_id:
+      name: Recipe ID
+      description: Positive EverShelf catalog recipe ID.
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    ingredient_key:
+      name: Ingredient key
+      description: Stable ri:<position>:<hash> key from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    position:
+      name: Ingredient position
+      description: Nonnegative source position from recipe_detail_v1.
+      required: true
+      selector:
+        number:
+          min: 0
+          step: 1
+          mode: box
+    verdict:
+      name: Match verdict
+      description: Confirm that the displayed target is correct or report that it is wrong.
+      required: true
+      selector:
+        select:
+          options:
+            - correct
+            - wrong
+    target_kind:
+      name: Feedback target
+      description: The inventory product or closest identity label shown by recipe_detail_v1.
+      required: true
+      selector:
+        select:
+          options:
+            - matched_product
+            - closest_match
+    feedback_token:
+      name: Feedback token
+      description: Current opaque ingredient evidence token from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    idempotency_key:
+      name: Idempotency key
+      description: Stable 1-128 character command key. Reuse it only for the same feedback request.
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: EverShelf config entry ID. Required when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+recipe_ingredient_decision:
+  name: Decide Recipe Ingredient
+  description: Atomically assume availability, bind a selected stocked product as positive identity evidence, or reject the exact displayed match. Model work is queued asynchronously and never applied automatically.
+  fields:
+    recipe_id:
+      name: Recipe ID
+      description: Positive EverShelf catalog recipe ID.
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    ingredient_key:
+      name: Ingredient key
+      description: Stable ingredient key from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    position:
+      name: Ingredient position
+      description: Nonnegative source position from recipe_detail_v1.
+      required: true
+      selector:
+        number:
+          min: 0
+          step: 1
+          mode: box
+    action:
+      name: Decision
+      description: Assume the ingredient is available, select an exact stocked product, or reject the current exact match.
+      required: true
+      selector:
+        select:
+          options:
+            - assume_have
+            - select_inventory_product
+            - reject_current_match
+    selected_product_id:
+      name: Selected product ID
+      description: Product-level EverShelf inventory ID required only for select_inventory_product.
+      required: false
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    expected_target_product_id:
+      name: Expected matched product ID
+      description: Exact displayed product ID for reject_current_match. Omit when no exact target was displayed.
+      required: false
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    feedback_token:
+      name: Feedback token
+      description: Current active-score ingredient evidence token from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    idempotency_key:
+      name: Idempotency key
+      description: Reuse the same key after an ambiguous transport failure.
+      required: true
+      selector:
+        text:
+    action_origin:
+      name: Action origin
+      description: Exact trusted UI or operator command origin.
+      required: false
+      default: home_assistant
+      selector:
+        select:
+          options:
+            - home_assistant
+            - react_dashboard
+            - operator
+    config_entry_id:
+      name: Config entry
+      description: EverShelf config entry ID. Required when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
+recipe_planner_add:
+  name: Add Recipe to My Week
+  description: Assign a Cookidoo-origin recipe to a date in the configured Cookidoo account planner. This is an account action, not a direct Thermomix device push.
+  fields:
+    recipe_id:
+      name: Recipe ID
+      description: EverShelf recipe ID. EverShelf resolves the Cookidoo external ID server-side.
+      required: true
+      selector:
+        number:
+          min: 1
+          step: 1
+          mode: box
+    date:
+      name: Date
+      description: ISO date from today through 365 days from today.
+      required: true
+      selector:
+        date:
+    provider_action_token:
+      name: Provider action token
+      description: Opaque recipe/origin/catalog revision token from recipe_detail_v1.
+      required: true
+      selector:
+        text:
+    idempotency_key:
+      name: Idempotency key
+      description: Stable command key. Reuse it after an ambiguous transport failure.
+      required: true
+      selector:
+        text:
+    config_entry_id:
+      name: Config entry
+      description: EverShelf config entry ID. Required when multiple EverShelf instances are configured.
+      required: false
+      selector:
+        text:
+
 recipe_grocery_add:
   name: Add Recipe Groceries
   description: Add selected missing ingredients to EverShelf, then deduplicate and mirror eligible items to a Home Assistant todo list.

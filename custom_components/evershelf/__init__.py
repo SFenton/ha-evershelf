@@ -36,9 +36,12 @@ from .coordinator import (
     EverShelfCoordinator,
 )
 from .recipe_api import (
+    RECIPE_FEEDBACK_TOKEN_PATTERN,
     RECIPE_GROCERY_MAX_SELECTIONS,
     RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH,
     RECIPE_IDEMPOTENCY_KEY_PATTERN,
+    RECIPE_INGREDIENT_ACTION_ORIGINS,
+    RECIPE_INGREDIENT_DECISION_ACTIONS,
     RECIPE_INGREDIENT_KEY_MAX_LENGTH,
     RECIPE_INGREDIENT_KEY_PATTERN,
 )
@@ -58,6 +61,13 @@ _INVENTORY_LOCATIONS = ("dispensa", "frigo", "freezer", "spice_rack", "cabinet",
 _LOCATION_SUGGESTION_MODES = ("barcode", "manual")
 _RECIPE_DETAIL_CAPABILITY = "recipe_detail_v1"
 _RECIPE_GROCERY_CAPABILITY = "recipe_grocery_v1"
+_RECIPE_INGREDIENT_FEEDBACK_CAPABILITY = (
+    "recipe_ingredient_feedback_v1"
+)
+_RECIPE_INGREDIENT_DECISION_CAPABILITY = (
+    "recipe_ingredient_feedback_v2"
+)
+_RECIPE_PLANNER_CAPABILITY = "recipe_planner_v1"
 _DEFAULT_RECIPE_TODO_ENTITY_ID = "todo.shopping_list"
 _MAX_RECIPE_MIRROR_REQUESTS = 256
 _MAX_RECIPE_MIRROR_NAMES = RECIPE_GROCERY_MAX_SELECTIONS
@@ -427,6 +437,104 @@ _RECIPE_GROCERY_ADD_SCHEMA = vol.Schema(
     }
 )
 
+_RECIPE_INGREDIENT_FEEDBACK_BASE = {
+    vol.Required("recipe_id"): vol.All(
+        _strict_int,
+        vol.Range(min=1),
+    ),
+    vol.Required("ingredient_key"): vol.All(
+        cv.string,
+        str.strip,
+        vol.Length(min=1, max=RECIPE_INGREDIENT_KEY_MAX_LENGTH),
+        vol.Match(RECIPE_INGREDIENT_KEY_PATTERN.pattern),
+    ),
+    vol.Required("position"): vol.All(
+        _strict_int,
+        vol.Range(min=0),
+    ),
+    vol.Required("feedback_token"): vol.All(
+        cv.string,
+        str.strip,
+        vol.Match(RECIPE_FEEDBACK_TOKEN_PATTERN.pattern),
+    ),
+    vol.Required("idempotency_key"): vol.All(
+        cv.string,
+        str.strip,
+        vol.Length(min=1, max=RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH),
+        vol.Match(RECIPE_IDEMPOTENCY_KEY_PATTERN.pattern),
+    ),
+    vol.Optional("config_entry_id"): cv.string,
+}
+
+_RECIPE_INGREDIENT_OVERRIDE_SCHEMA = vol.Schema(
+    {
+        **_RECIPE_INGREDIENT_FEEDBACK_BASE,
+        vol.Required("availability"): vol.In(
+            ("have", "missing", "clear")
+        ),
+    }
+)
+
+_RECIPE_IDENTITY_FEEDBACK_SCHEMA = vol.Schema(
+    {
+        **_RECIPE_INGREDIENT_FEEDBACK_BASE,
+        vol.Required("verdict"): vol.In(("correct", "wrong")),
+        vol.Required("target_kind"): vol.In(
+            ("matched_product", "closest_match")
+        ),
+    }
+)
+
+_RECIPE_INGREDIENT_DECISION_SCHEMA = vol.Schema(
+    {
+        **_RECIPE_INGREDIENT_FEEDBACK_BASE,
+        vol.Required("action"): vol.In(
+            RECIPE_INGREDIENT_DECISION_ACTIONS
+        ),
+        vol.Optional("selected_product_id"): vol.All(
+            _strict_int,
+            vol.Range(min=1),
+        ),
+        vol.Optional("expected_target_product_id"): vol.All(
+            _strict_int,
+            vol.Range(min=1),
+        ),
+        vol.Optional(
+            "action_origin",
+            default="home_assistant",
+        ): vol.In(RECIPE_INGREDIENT_ACTION_ORIGINS),
+    }
+)
+
+_RECIPE_PLANNER_ADD_SCHEMA = vol.Schema(
+    {
+        vol.Required("recipe_id"): vol.All(
+            _strict_int,
+            vol.Range(min=1),
+        ),
+        vol.Required("date"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Match(r"^\d{4}-\d{2}-\d{2}$"),
+        ),
+        vol.Required("provider_action_token"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Match(RECIPE_FEEDBACK_TOKEN_PATTERN.pattern),
+        ),
+        vol.Required("idempotency_key"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Length(
+                min=1,
+                max=RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH,
+            ),
+            vol.Match(RECIPE_IDEMPOTENCY_KEY_PATTERN.pattern),
+        ),
+        vol.Optional("config_entry_id"): cv.string,
+    }
+)
+
 _DELETE_INVENTORY_SCHEMA = vol.Schema(
     {
         vol.Required("inventory_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
@@ -650,6 +758,38 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         async def _handle_recipe_detail(call: ServiceCall) -> dict[str, object]:
             return await _async_handle_recipe_detail(hass, call)
 
+        async def _handle_recipe_ingredient_override(
+            call: ServiceCall,
+        ) -> dict[str, object]:
+            return await _async_handle_recipe_ingredient_override(
+                hass,
+                call,
+            )
+
+        async def _handle_recipe_identity_feedback(
+            call: ServiceCall,
+        ) -> dict[str, object]:
+            return await _async_handle_recipe_identity_feedback(
+                hass,
+                call,
+            )
+
+        async def _handle_recipe_ingredient_decision(
+            call: ServiceCall,
+        ) -> dict[str, object]:
+            return await _async_handle_recipe_ingredient_decision(
+                hass,
+                call,
+            )
+
+        async def _handle_recipe_planner_add(
+            call: ServiceCall,
+        ) -> dict[str, object]:
+            return await _async_handle_recipe_planner_add(
+                hass,
+                call,
+            )
+
         async def _handle_recipe_grocery_add(
             call: ServiceCall,
         ) -> dict[str, object]:
@@ -813,6 +953,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(
             DOMAIN,
+            "recipe_ingredient_override",
+            _handle_recipe_ingredient_override,
+            schema=_RECIPE_INGREDIENT_OVERRIDE_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "recipe_identity_feedback",
+            _handle_recipe_identity_feedback,
+            schema=_RECIPE_IDENTITY_FEEDBACK_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "recipe_ingredient_decision",
+            _handle_recipe_ingredient_decision,
+            schema=_RECIPE_INGREDIENT_DECISION_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
+            "recipe_planner_add",
+            _handle_recipe_planner_add,
+            schema=_RECIPE_PLANNER_ADD_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "recipe_grocery_add",
             _handle_recipe_grocery_add,
             schema=_RECIPE_GROCERY_ADD_SCHEMA,
@@ -896,6 +1064,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "recipe_query",
             "recipe_hydration",
             "recipe_detail",
+            "recipe_ingredient_override",
+            "recipe_identity_feedback",
+            "recipe_ingredient_decision",
+            "recipe_planner_add",
             "recipe_grocery_add",
             "delete_inventory",
             "delete_inventory_item",
@@ -990,8 +1162,10 @@ async def _async_capability_error(
 def _effective_recipe_detail_response(
     result: Mapping[str, object],
     grocery_capability_status: str,
+    ingredient_decision_status: str = CAPABILITY_SUPPORTED,
+    planner_status: str = CAPABILITY_SUPPORTED,
 ) -> dict[str, object]:
-    """Apply the HA grocery capability gate without changing backend detail."""
+    """Apply HA capability gates without changing backend-owned detail data."""
     response = dict(result)
     if result.get("success") is not True:
         return response
@@ -1000,21 +1174,31 @@ def _effective_recipe_detail_response(
     if not isinstance(detail, Mapping):
         return response
     capabilities = detail.get("capabilities")
-    if (
-        not isinstance(capabilities, Mapping)
-        or capabilities.get("grocery_add") is not True
-        or grocery_capability_status == CAPABILITY_SUPPORTED
-    ):
+    if not isinstance(capabilities, Mapping):
         return response
 
     effective_capabilities = dict(capabilities)
-    effective_capabilities["grocery_add"] = False
-    if grocery_capability_status == CAPABILITY_UNSUPPORTED:
-        effective_capabilities["grocery_add_state"] = "unsupported"
-        effective_capabilities["grocery_add_reason"] = "unsupported_capability"
-    else:
-        effective_capabilities["grocery_add_state"] = "unavailable"
-        effective_capabilities["grocery_add_reason"] = "capability_probe_failed"
+    for key, status in (
+        ("grocery_add", grocery_capability_status),
+        ("ingredient_feedback_v2", ingredient_decision_status),
+        ("planner", planner_status),
+    ):
+        if (
+            effective_capabilities.get(key) is not True
+            or status == CAPABILITY_SUPPORTED
+        ):
+            continue
+        effective_capabilities[key] = False
+        effective_capabilities[f"{key}_state"] = (
+            "unsupported"
+            if status == CAPABILITY_UNSUPPORTED
+            else "unavailable"
+        )
+        effective_capabilities[f"{key}_reason"] = (
+            "unsupported_capability"
+            if status == CAPABILITY_UNSUPPORTED
+            else "capability_probe_failed"
+        )
 
     effective_detail = dict(detail)
     effective_detail["capabilities"] = effective_capabilities
@@ -1048,20 +1232,160 @@ async def _async_handle_recipe_detail(
         if isinstance(detail, Mapping)
         else None
     )
-    if (
-        result.get("success") is not True
-        or not isinstance(capabilities, Mapping)
-        or capabilities.get("grocery_add") is not True
+    if result.get("success") is not True or not isinstance(
+        capabilities,
+        Mapping,
     ):
         return dict(result)
 
-    grocery_capability_status = await coordinator.async_capability_status(
-        _RECIPE_GROCERY_CAPABILITY
+    grocery_capability_status = (
+        await coordinator.async_capability_status(
+            _RECIPE_GROCERY_CAPABILITY
+        )
+        if capabilities.get("grocery_add") is True
+        else CAPABILITY_SUPPORTED
+    )
+    ingredient_decision_status = (
+        await coordinator.async_capability_status(
+            _RECIPE_INGREDIENT_DECISION_CAPABILITY
+        )
+        if capabilities.get("ingredient_feedback_v2") is True
+        else CAPABILITY_SUPPORTED
+    )
+    planner_status = (
+        await coordinator.async_capability_status(
+            _RECIPE_PLANNER_CAPABILITY
+        )
+        if capabilities.get("planner") is True
+        else CAPABILITY_SUPPORTED
     )
     return _effective_recipe_detail_response(
         result,
         grocery_capability_status,
+        ingredient_decision_status,
+        planner_status,
     )
+
+async def _async_handle_recipe_ingredient_override(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> dict[str, object]:
+    """Persist a display-only ingredient availability override."""
+    coordinator = _get_coordinator(
+        hass,
+        call,
+        require_explicit_if_multiple=True,
+    )
+    capability_error = await _async_capability_error(
+        coordinator,
+        _RECIPE_INGREDIENT_FEEDBACK_CAPABILITY,
+    )
+    if capability_error is not None:
+        return capability_error
+    data = dict(call.data)
+    data.pop("config_entry_id", None)
+    try:
+        result = await coordinator.async_recipe_ingredient_override(
+            data
+        )
+    except ValueError as err:
+        raise ServiceValidationError(f"EverShelf: {err}") from err
+    if result is None:
+        raise ServiceValidationError(
+            "EverShelf: ingredient override request failed"
+        )
+    return dict(result)
+
+
+async def _async_handle_recipe_identity_feedback(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> dict[str, object]:
+    """Record explicit ingredient identity feedback."""
+    coordinator = _get_coordinator(
+        hass,
+        call,
+        require_explicit_if_multiple=True,
+    )
+    capability_error = await _async_capability_error(
+        coordinator,
+        _RECIPE_INGREDIENT_FEEDBACK_CAPABILITY,
+    )
+    if capability_error is not None:
+        return capability_error
+    data = dict(call.data)
+    data.pop("config_entry_id", None)
+    try:
+        result = await coordinator.async_recipe_identity_feedback(
+            data
+        )
+    except ValueError as err:
+        raise ServiceValidationError(f"EverShelf: {err}") from err
+    if result is None:
+        raise ServiceValidationError(
+            "EverShelf: identity feedback request failed"
+        )
+    return dict(result)
+
+
+async def _async_handle_recipe_ingredient_decision(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> dict[str, object]:
+    """Submit one atomic ingredient decision v2 command."""
+    coordinator = _get_coordinator(
+        hass,
+        call,
+        require_explicit_if_multiple=True,
+    )
+    capability_error = await _async_capability_error(
+        coordinator,
+        _RECIPE_INGREDIENT_DECISION_CAPABILITY,
+    )
+    if capability_error is not None:
+        return capability_error
+    data = dict(call.data)
+    data.pop("config_entry_id", None)
+    try:
+        result = await coordinator.async_recipe_ingredient_decision(
+            data
+        )
+    except ValueError as err:
+        raise ServiceValidationError(f"EverShelf: {err}") from err
+    if result is None:
+        raise ServiceValidationError(
+            "EverShelf: ingredient decision request failed"
+        )
+    return dict(result)
+
+
+async def _async_handle_recipe_planner_add(
+    hass: HomeAssistant,
+    call: ServiceCall,
+) -> dict[str, object]:
+    """Assign one Cookidoo recipe to an account-level My Week date."""
+    coordinator = _get_coordinator(
+        hass,
+        call,
+        require_explicit_if_multiple=True,
+    )
+    capability_error = await _async_capability_error(
+        coordinator,
+        _RECIPE_PLANNER_CAPABILITY,
+    )
+    if capability_error is not None:
+        return capability_error
+    data = dict(call.data)
+    data.pop("config_entry_id", None)
+    try:
+        result = await coordinator.async_recipe_planner_add(data)
+    except ValueError as err:
+        raise ServiceValidationError(f"EverShelf: {err}") from err
+    if result is None:
+        raise ServiceValidationError(
+            "EverShelf: recipe planner request failed"
+        )
+    return dict(result)
 
 
 async def _async_handle_recipe_grocery_add(

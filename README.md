@@ -40,7 +40,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 | Requirement | Details |
 |---|---|
-| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, and grocery actions require `recipe_grocery_v1` |
+| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, grocery actions require `recipe_grocery_v1`, atomic ingredient decisions require `recipe_ingredient_feedback_v2`, and the default-off account planner requires `recipe_planner_v1` |
 | **Home Assistant** | 2024.1.0 or newer |
 | **Network** | HA host must be able to reach the EverShelf server (same LAN or routed) |
 | **SETTINGS_TOKEN** | Optional — needed only for write operations (add to shopping, mark used) |
@@ -57,7 +57,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
 | **1 Text entity** | Quick-add a product to the shopping list by typing its name |
-| **19 Services** | Existing inventory/scanning services plus response services for recipe query, hydration, bounded detail, and idempotent grocery actions |
+| **21 Services** | Existing inventory/scanning services plus response services for recipe query, hydration, bounded detail, atomic ingredient decisions, account planning, and idempotent grocery actions |
 | **Auto-discovery** | Zeroconf/mDNS — no manual URL entry needed if `avahi-daemon` runs on EverShelf host |
 | **5 languages** | English, Italian, German, French, Spanish |
 | **Read-only mode** | All sensors work without a token; write operations need `SETTINGS_TOKEN` |
@@ -246,11 +246,68 @@ and optional `closest_match` fields pass through unchanged. The effective
 unsupported or temporarily unavailable, detail still succeeds with
 `grocery_add: false` plus bounded `grocery_add_state` and
 `grocery_add_reason` annotations.
+The same pass-through rule applies to additive ingredient-decision and planner
+metadata. Home Assistant may only lower `ingredient_feedback_v2` or `planner`
+when the corresponding capability is unsupported or temporarily unavailable.
 
 ```yaml
 service: evershelf.recipe_detail
 data:
   recipe_id: 123
+```
+
+### `evershelf.recipe_ingredient_override`
+
+Persists a display-only `have`, `missing`, or `clear` assertion for one
+revision-bound ingredient. It does not change inventory, ranking, or backend
+grocery eligibility.
+
+### `evershelf.recipe_identity_feedback`
+
+Records an explicit `correct` or `wrong` verdict for the matched inventory
+product or closest identity label. Evidence settles before it can be exported
+into the Gemini-assisted, human-reviewed ontology proposal workflow; it is
+never applied automatically.
+
+### `evershelf.recipe_ingredient_decision`
+
+The new dashboard command boundary submits exactly one atomic action:
+`assume_have`, `select_inventory_product`, or `reject_current_match`.
+The selected/expected IDs are product-level EverShelf IDs. Home Assistant does
+not split availability and identity into separate writes, and it preserves
+backend 409 `ingredient_feedback_stale`/idempotency responses. `assume_have`
+creates no AI evidence; exact positive/negative evidence is queued
+asynchronously by EverShelf and never applies ontology changes automatically.
+
+```yaml
+service: evershelf.recipe_ingredient_decision
+data:
+  recipe_id: 123
+  ingredient_key: "ri:2:0123456789abcdef"
+  position: 2
+  action: select_inventory_product
+  selected_product_id: 42
+  feedback_token: "<64-character token>"
+  idempotency_key: "react-recipe-123-decision-01"
+  action_origin: react_dashboard
+```
+
+### `evershelf.recipe_planner_add`
+
+Assigns a Cookidoo-origin recipe to an ISO date in the configured Cookidoo
+account's My Week planner. React supplies only the EverShelf recipe ID,
+revision-bound provider token, date, and idempotency key; EverShelf resolves the
+provider external ID. This is an account planner action, not a direct Thermomix
+device push. The service is absent effectively unless the backend advertises
+the dual-default-off `recipe_planner_v1` capability.
+
+```yaml
+service: evershelf.recipe_planner_add
+data:
+  recipe_id: 123
+  date: "2026-08-20"
+  provider_action_token: "<64-character token>"
+  idempotency_key: "react-recipe-123-planner-01"
 ```
 
 ### `evershelf.recipe_grocery_add`

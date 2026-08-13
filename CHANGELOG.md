@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.3] - 2026-08-12
+
+### Added
+- Capability-gated `recipe_ingredient_override` service for display-only have/missing assertions.
+- Capability-gated `recipe_identity_feedback` service for revision-bound correct/wrong ingredient match evidence.
+- Capability-gated `recipe_ingredient_decision` response service for one atomic
+  assume/select/reject command with strict product-level IDs and stale-token
+  propagation.
+- Capability-gated `recipe_planner_add` response service for revision-bound,
+  account-level Cookidoo My Week date assignment.
+
+### Safety
+- Ingredient overrides never change EverShelf inventory, recipe scores, or confirmed-missing grocery eligibility.
+- Identity feedback remains proposal-only and cannot mutate ontology automatically.
+- Atomic decisions preserve one backend transaction/idempotency boundary;
+  `assume_have` never creates AI evidence.
+- Planner requests never accept a provider external ID from React and are
+  suppressed unless `recipe_planner_v1` is currently advertised.
+
 ## [1.3.2] - 2026-08-12
 
 ### Added

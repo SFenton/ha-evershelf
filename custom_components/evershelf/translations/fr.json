@@ -280,6 +280,60 @@
         "config_entry_id": {"name": "Entrée de configuration", "description": "ID facultatif de l'entrée EverShelf."}
       }
     },
+    "recipe_ingredient_override": {
+      "name": "Remplacer la disponibilité d'un ingrédient",
+      "description": "Enregistre un remplacement d'affichage sans modifier le stock ni le classement.",
+      "fields": {
+        "recipe_id": {"name": "ID de recette", "description": "ID positif de recette EverShelf."},
+        "ingredient_key": {"name": "Clé d'ingrédient", "description": "Clé stable du détail de recette."},
+        "position": {"name": "Position", "description": "Position non négative."},
+        "availability": {"name": "Disponibilité", "description": "Disponible, manquant ou effacer."},
+        "feedback_token": {"name": "Jeton de preuve", "description": "Jeton opaque actuel de l'ingrédient."},
+        "idempotency_key": {"name": "Clé d'idempotence", "description": "Clé de commande stable."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "Obligatoire avec plusieurs instances EverShelf."}
+      }
+    },
+    "recipe_identity_feedback": {
+      "name": "Enregistrer l'avis sur la correspondance",
+      "description": "Enregistre correct ou incorrect comme preuve de proposition d'ontologie.",
+      "fields": {
+        "recipe_id": {"name": "ID de recette", "description": "ID positif de recette EverShelf."},
+        "ingredient_key": {"name": "Clé d'ingrédient", "description": "Clé stable du détail de recette."},
+        "position": {"name": "Position", "description": "Position non négative."},
+        "verdict": {"name": "Verdict", "description": "Correct ou incorrect."},
+        "target_kind": {"name": "Cible", "description": "Produit correspondant ou correspondance proche."},
+        "feedback_token": {"name": "Jeton de preuve", "description": "Jeton opaque actuel de l'ingrédient."},
+        "idempotency_key": {"name": "Clé d'idempotence", "description": "Clé de commande stable."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "Obligatoire avec plusieurs instances EverShelf."}
+      }
+    },
+    "recipe_ingredient_decision": {
+      "name": "Décider pour un ingrédient",
+      "description": "Enregistre atomiquement la disponibilité affichée et la preuve d’identité liée au produit.",
+      "fields": {
+        "recipe_id": {"name": "ID de recette", "description": "ID positif de recette du catalogue EverShelf."},
+        "ingredient_key": {"name": "Clé d’ingrédient", "description": "Clé stable issue des détails de recette."},
+        "position": {"name": "Position", "description": "Position non négative de l’ingrédient."},
+        "action": {"name": "Décision", "description": "Supposer disponible, sélectionner un produit ou rejeter la correspondance actuelle."},
+        "selected_product_id": {"name": "ID du produit sélectionné", "description": "ID exact d’un produit en stock pour une sélection positive."},
+        "expected_target_product_id": {"name": "ID du produit attendu", "description": "ID exact affiché pour un rejet."},
+        "feedback_token": {"name": "Jeton de retour", "description": "Jeton actuel de preuve lié au score actif."},
+        "idempotency_key": {"name": "Clé d’idempotence", "description": "Clé stable à réutiliser après un échec ambigu."},
+        "action_origin": {"name": "Origine de l’action", "description": "Origine fiable de l’interface ou de l’opérateur."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "Requise avec plusieurs instances EverShelf."}
+      }
+    },
+    "recipe_planner_add": {
+      "name": "Ajouter la recette à Ma semaine",
+      "description": "Affecte une recette Cookidoo à une date du planificateur du compte, pas directement à un appareil.",
+      "fields": {
+        "recipe_id": {"name": "ID de recette", "description": "ID EverShelf ; l’ID fournisseur est résolu côté serveur."},
+        "date": {"name": "Date", "description": "Date ISO d’aujourd’hui à 365 jours."},
+        "provider_action_token": {"name": "Jeton d’action fournisseur", "description": "Jeton opaque de recette, origine et révision."},
+        "idempotency_key": {"name": "Clé d’idempotence", "description": "Clé stable à réutiliser après un échec ambigu."},
+        "config_entry_id": {"name": "Entrée de configuration", "description": "Requise avec plusieurs instances EverShelf."}
+      }
+    },
     "recipe_grocery_add": {
       "name": "Ajouter les ingrédients de la recette",
       "description": "Ajouter les ingrédients manquants sélectionnés à EverShelf et recopier les éléments admissibles dans une liste de tâches Home Assistant.",

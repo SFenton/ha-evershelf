@@ -1,5 +1,6 @@
 import asyncio
 import copy
+from datetime import date, timedelta
 import importlib.util
 from enum import Enum, IntFlag
 from pathlib import Path
@@ -306,6 +307,9 @@ class FakeCoordinator:
         self.recipe_catalog_supported = True
         self.recipe_detail_supported = True
         self.recipe_grocery_supported = True
+        self.recipe_ingredient_feedback_supported = True
+        self.recipe_ingredient_feedback_v2_supported = True
+        self.recipe_planner_supported = True
         self.capability_statuses = {}
         self.detail_response = {
             "success": True,
@@ -325,8 +329,51 @@ class FakeCoordinator:
                 "failed": 0,
             },
         }
+        self.override_response = {
+            "success": True,
+            "recipe_id": 7,
+            "ingredient_key": "ri:1:0000000000000001",
+            "position": 1,
+            "availability": "have",
+            "replayed": False,
+        }
+        self.identity_feedback_response = {
+            "success": True,
+            "recipe_id": 7,
+            "ingredient_key": "ri:1:0000000000000001",
+            "position": 1,
+            "verdict": "wrong",
+            "target_kind": "closest_match",
+            "settle_days": 14,
+            "replayed": False,
+        }
+        self.ingredient_decision_response = {
+            "success": True,
+            "recipe_id": 7,
+            "ingredient_key": "ri:1:0000000000000001",
+            "position": 1,
+            "action": "assume_have",
+            "availability": "have",
+            "identity_evidence": False,
+            "proposal_enqueued": False,
+            "replayed": False,
+        }
+        self.planner_response = {
+            "success": True,
+            "recipe_id": 7,
+            "date": "2026-08-20",
+            "changed": True,
+            "already_present": False,
+            "verified": True,
+            "account_scope": "configured_account",
+            "replayed": False,
+        }
         self.events = []
         self.grocery_requests = []
+        self.override_requests = []
+        self.identity_feedback_requests = []
+        self.ingredient_decision_requests = []
+        self.planner_requests = []
 
     async def async_config_entry_first_refresh(self):
         return None
@@ -341,6 +388,11 @@ class FakeCoordinator:
             "recipe_catalog_v2": self.recipe_catalog_supported,
             "recipe_detail_v1": self.recipe_detail_supported,
             "recipe_grocery_v1": self.recipe_grocery_supported,
+            "recipe_ingredient_feedback_v1":
+                self.recipe_ingredient_feedback_supported,
+            "recipe_ingredient_feedback_v2":
+                self.recipe_ingredient_feedback_v2_supported,
+            "recipe_planner_v1": self.recipe_planner_supported,
         }.get(capability, False)
         return "supported" if supported else "unsupported"
 
@@ -353,6 +405,26 @@ class FakeCoordinator:
         self.hass.services.events.append(("evershelf", "backend_grocery"))
         self.grocery_requests.append(dict(request))
         return self.grocery_response
+
+    async def async_recipe_ingredient_override(self, request):
+        self.events.append(("backend_override", request["recipe_id"]))
+        self.override_requests.append(dict(request))
+        return self.override_response
+
+    async def async_recipe_identity_feedback(self, request):
+        self.events.append(("backend_identity", request["recipe_id"]))
+        self.identity_feedback_requests.append(dict(request))
+        return self.identity_feedback_response
+
+    async def async_recipe_ingredient_decision(self, request):
+        self.events.append(("backend_decision", request["recipe_id"]))
+        self.ingredient_decision_requests.append(dict(request))
+        return self.ingredient_decision_response
+
+    async def async_recipe_planner_add(self, request):
+        self.events.append(("backend_planner", request["recipe_id"]))
+        self.planner_requests.append(dict(request))
+        return self.planner_response
 
     async def async_request_refresh(self):
         self.events.append(("refresh", None))
@@ -510,6 +582,69 @@ def test_recipe_service_schemas_are_strict() -> None:
         )
 
 
+def test_recipe_decision_and_planner_schemas_are_strict() -> None:
+    base = {
+        "recipe_id": 7,
+        "ingredient_key": "ri:2:0123456789abcdef",
+        "position": 2,
+        "feedback_token": "a" * 64,
+        "idempotency_key": "decision-7",
+    }
+    assert integration._RECIPE_INGREDIENT_DECISION_SCHEMA(
+        base | {"action": "assume_have"}
+    )["action_origin"] == "home_assistant"
+    selected = integration._RECIPE_INGREDIENT_DECISION_SCHEMA(
+        base
+        | {
+            "action": "select_inventory_product",
+            "selected_product_id": 42,
+            "action_origin": "react_dashboard",
+        }
+    )
+    assert selected["selected_product_id"] == 42
+    for payload in (
+        base | {"action": "unknown"},
+        base | {"action": "select_inventory_product", "selected_product_id": True},
+        base | {"action": "assume_have", "action_origin": "browser"},
+        base | {"action": "reject_current_match", "extra": True},
+    ):
+        with pytest.raises(vol.Invalid):
+            integration._RECIPE_INGREDIENT_DECISION_SCHEMA(payload)
+
+    planned_date = (date.today() + timedelta(days=1)).isoformat()
+    planner = integration._RECIPE_PLANNER_ADD_SCHEMA(
+        {
+            "recipe_id": 7,
+            "date": planned_date,
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "planner-7",
+        }
+    )
+    assert planner["date"] == planned_date
+    for payload in (
+        {
+            "recipe_id": 7,
+            "date": "08/20/2026",
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "planner-7",
+        },
+        {
+            "recipe_id": 7,
+            "date": planned_date,
+            "provider_action_token": "short",
+            "idempotency_key": "planner-7",
+        },
+        {
+            "recipe_id": 7,
+            "date": planned_date,
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "bad key",
+        },
+    ):
+        with pytest.raises(vol.Invalid):
+            integration._RECIPE_PLANNER_ADD_SCHEMA(payload)
+
+
 def test_recipe_detail_capability_response_and_structured_backend_error() -> None:
     hass = FakeHass()
     coordinator = FakeCoordinator(hass)
@@ -624,6 +759,174 @@ def test_recipe_detail_preserves_additive_backend_fields() -> None:
         "inventory_id": 12,
     }
     assert "closest_match" not in response["detail"]["ingredients"][1]
+
+
+def test_recipe_ingredient_feedback_services_are_capability_gated() -> None:
+    hass = FakeHass()
+    coordinator = FakeCoordinator(hass)
+    hass.data[integration.DOMAIN] = {coordinator.entry_id: coordinator}
+    common = {
+        "recipe_id": 7,
+        "ingredient_key": "ri:1:0000000000000001",
+        "position": 1,
+        "feedback_token": "a" * 64,
+        "idempotency_key": "feedback-command-1",
+        "config_entry_id": coordinator.entry_id,
+    }
+
+    override = asyncio.run(
+        integration._async_handle_recipe_ingredient_override(
+            hass,
+            _service_call(common | {"availability": "have"}),
+        )
+    )
+    identity = asyncio.run(
+        integration._async_handle_recipe_identity_feedback(
+            hass,
+            _service_call(
+                common
+                | {
+                    "idempotency_key": "feedback-command-2",
+                    "verdict": "wrong",
+                    "target_kind": "closest_match",
+                }
+            ),
+        )
+    )
+
+    assert override == coordinator.override_response
+    assert identity == coordinator.identity_feedback_response
+    assert "config_entry_id" not in coordinator.override_requests[0]
+    assert "config_entry_id" not in coordinator.identity_feedback_requests[0]
+
+    coordinator.capability_statuses[
+        "recipe_ingredient_feedback_v1"
+    ] = "unavailable"
+    unavailable = asyncio.run(
+        integration._async_handle_recipe_ingredient_override(
+            hass,
+            _service_call(common | {"availability": "missing"}),
+        )
+    )
+    assert unavailable["error_kind"] == "unavailable"
+    assert unavailable["required_capability"] == (
+        "recipe_ingredient_feedback_v1"
+    )
+
+
+def test_recipe_decision_and_planner_services_are_capability_gated() -> None:
+    hass = FakeHass()
+    coordinator = FakeCoordinator(hass)
+    hass.data[integration.DOMAIN] = {coordinator.entry_id: coordinator}
+    decision_call = _service_call(
+        {
+            "recipe_id": 7,
+            "ingredient_key": "ri:1:0000000000000001",
+            "position": 1,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "decision-command-1",
+            "action": "select_inventory_product",
+            "selected_product_id": 42,
+            "action_origin": "react_dashboard",
+            "config_entry_id": coordinator.entry_id,
+        }
+    )
+    decision = asyncio.run(
+        integration._async_handle_recipe_ingredient_decision(
+            hass,
+            decision_call,
+        )
+    )
+    assert decision == coordinator.ingredient_decision_response
+    assert coordinator.ingredient_decision_requests == [
+        {
+            "recipe_id": 7,
+            "ingredient_key": "ri:1:0000000000000001",
+            "position": 1,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "decision-command-1",
+            "action": "select_inventory_product",
+            "selected_product_id": 42,
+            "action_origin": "react_dashboard",
+        }
+    ]
+
+    planned_date = (date.today() + timedelta(days=1)).isoformat()
+    planner_call = _service_call(
+        {
+            "recipe_id": 7,
+            "date": planned_date,
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "planner-command-1",
+            "config_entry_id": coordinator.entry_id,
+        }
+    )
+    planner = asyncio.run(
+        integration._async_handle_recipe_planner_add(
+            hass,
+            planner_call,
+        )
+    )
+    assert planner == coordinator.planner_response
+    assert coordinator.planner_requests == [
+        {
+            "recipe_id": 7,
+            "date": planned_date,
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "planner-command-1",
+        }
+    ]
+
+    coordinator.capability_statuses[
+        "recipe_ingredient_feedback_v2"
+    ] = "unsupported"
+    unsupported = asyncio.run(
+        integration._async_handle_recipe_ingredient_decision(
+            hass,
+            decision_call,
+        )
+    )
+    assert unsupported["required_capability"] == (
+        "recipe_ingredient_feedback_v2"
+    )
+    coordinator.capability_statuses["recipe_planner_v1"] = "unavailable"
+    unavailable = asyncio.run(
+        integration._async_handle_recipe_planner_add(
+            hass,
+            planner_call,
+        )
+    )
+    assert unavailable["error_kind"] == "unavailable"
+    assert unavailable["required_capability"] == "recipe_planner_v1"
+
+
+def test_recipe_detail_lowers_decision_and_planner_capabilities() -> None:
+    hass = FakeHass()
+    coordinator = FakeCoordinator(hass)
+    coordinator.detail_response = _rich_detail_response()
+    coordinator.detail_response["detail"]["capabilities"].update(
+        {
+            "ingredient_feedback_v2": True,
+            "planner": True,
+        }
+    )
+    coordinator.recipe_ingredient_feedback_v2_supported = False
+    coordinator.capability_statuses["recipe_planner_v1"] = "unavailable"
+    original = copy.deepcopy(coordinator.detail_response)
+    hass.data[integration.DOMAIN] = {coordinator.entry_id: coordinator}
+
+    response = asyncio.run(
+        integration._async_handle_recipe_detail(
+            hass,
+            _service_call({"recipe_id": 7}),
+        )
+    )
+    capabilities = response["detail"]["capabilities"]
+    assert capabilities["ingredient_feedback_v2"] is False
+    assert capabilities["ingredient_feedback_v2_state"] == "unsupported"
+    assert capabilities["planner"] is False
+    assert capabilities["planner_state"] == "unavailable"
+    assert coordinator.detail_response == original
 
 
 def test_recipe_detail_disables_grocery_without_backend_capability() -> None:
@@ -745,6 +1048,31 @@ def test_coordinator_recipe_methods_use_request_builders() -> None:
             }
         )
     )
+    asyncio.run(
+        coordinator.async_recipe_ingredient_decision(
+            {
+                "recipe_id": 7,
+                "ingredient_key": "ri:2:0123456789abcdef",
+                "position": 2,
+                "feedback_token": "a" * 64,
+                "idempotency_key": "decision-7",
+                "action": "reject_current_match",
+                "expected_target_product_id": 42,
+                "action_origin": "react_dashboard",
+            }
+        )
+    )
+    planned_date = (date.today() + timedelta(days=1)).isoformat()
+    asyncio.run(
+        coordinator.async_recipe_planner_add(
+            {
+                "recipe_id": 7,
+                "date": planned_date,
+                "provider_action_token": "b" * 64,
+                "idempotency_key": "planner-7",
+            }
+        )
+    )
     assert calls == [
         (
             "GET",
@@ -764,6 +1092,32 @@ def test_coordinator_recipe_methods_use_request_builders() -> None:
             },
             {"timeout": 30, "preserve_errors": True},
         ),
+        (
+            "POST",
+            "recipe_catalog_ingredient_decision",
+            {
+                "recipe_id": 7,
+                "ingredient_key": "ri:2:0123456789abcdef",
+                "position": 2,
+                "feedback_token": "a" * 64,
+                "idempotency_key": "decision-7",
+                "action": "reject_current_match",
+                "action_origin": "react_dashboard",
+                "expected_target_product_id": 42,
+            },
+            {"timeout": 30, "preserve_errors": True},
+        ),
+        (
+            "POST",
+            "recipe_catalog_planner_add",
+            {
+                "recipe_id": 7,
+                "date": planned_date,
+                "provider_action_token": "b" * 64,
+                "idempotency_key": "planner-7",
+            },
+            {"timeout": 60, "preserve_errors": True},
+        ),
     ]
 
 
@@ -782,6 +1136,8 @@ def test_coordinator_loads_recipe_capabilities_independently() -> None:
                 "recipe_catalog_v2",
                 "recipe_detail_v1",
                 "recipe_grocery_v1",
+                "recipe_ingredient_feedback_v2",
+                "recipe_planner_v1",
             ]
         }
 
@@ -790,6 +1146,8 @@ def test_coordinator_loads_recipe_capabilities_independently() -> None:
     assert coordinator.recipe_catalog_supported is True
     assert coordinator.recipe_detail_supported is True
     assert coordinator.recipe_grocery_supported is True
+    assert coordinator.recipe_ingredient_feedback_v2_supported is True
+    assert coordinator.recipe_planner_supported is True
 
 
 def test_capability_probe_initial_failure_recovers_after_cooldown() -> None:
@@ -1916,11 +2274,24 @@ def test_setup_registers_and_unload_removes_recipe_services() -> None:
     try:
         assert asyncio.run(integration.async_setup_entry(hass, entry)) is True
         assert hass.storage_load_calls == 1
+        coordinator = hass.data[integration.DOMAIN][entry.entry_id]
         detail = hass.services.registered[
             (integration.DOMAIN, "recipe_detail")
         ]
         grocery = hass.services.registered[
             (integration.DOMAIN, "recipe_grocery_add")
+        ]
+        override = hass.services.registered[
+            (integration.DOMAIN, "recipe_ingredient_override")
+        ]
+        identity = hass.services.registered[
+            (integration.DOMAIN, "recipe_identity_feedback")
+        ]
+        decision = hass.services.registered[
+            (integration.DOMAIN, "recipe_ingredient_decision")
+        ]
+        planner = hass.services.registered[
+            (integration.DOMAIN, "recipe_planner_add")
         ]
         assert (
             detail.supports_response
@@ -1930,6 +2301,83 @@ def test_setup_registers_and_unload_removes_recipe_services() -> None:
             grocery.supports_response
             is integration.SupportsResponse.ONLY
         )
+        assert (
+            override.supports_response
+            is integration.SupportsResponse.ONLY
+        )
+        assert (
+            identity.supports_response
+            is integration.SupportsResponse.ONLY
+        )
+        assert (
+            decision.supports_response
+            is integration.SupportsResponse.ONLY
+        )
+        assert (
+            planner.supports_response
+            is integration.SupportsResponse.ONLY
+        )
+        override_result = asyncio.run(
+            override.handler(
+                _service_call(
+                    {
+                        "recipe_id": 7,
+                        "ingredient_key": "ri:1:0000000000000001",
+                        "position": 1,
+                        "availability": "have",
+                        "feedback_token": "a" * 64,
+                        "idempotency_key": "registered-override-1",
+                    }
+                )
+            )
+        )
+        identity_result = asyncio.run(
+            identity.handler(
+                _service_call(
+                    {
+                        "recipe_id": 7,
+                        "ingredient_key": "ri:1:0000000000000001",
+                        "position": 1,
+                        "verdict": "wrong",
+                        "target_kind": "closest_match",
+                        "feedback_token": "a" * 64,
+                        "idempotency_key": "registered-identity-1",
+                    }
+                )
+            )
+        )
+        decision_result = asyncio.run(
+            decision.handler(
+                _service_call(
+                    {
+                        "recipe_id": 7,
+                        "ingredient_key": "ri:1:0000000000000001",
+                        "position": 1,
+                        "action": "assume_have",
+                        "feedback_token": "a" * 64,
+                        "idempotency_key": "registered-decision-1",
+                    }
+                )
+            )
+        )
+        planner_result = asyncio.run(
+            planner.handler(
+                _service_call(
+                    {
+                        "recipe_id": 7,
+                        "date": (
+                            date.today() + timedelta(days=1)
+                        ).isoformat(),
+                        "provider_action_token": "b" * 64,
+                        "idempotency_key": "registered-planner-1",
+                    }
+                )
+            )
+        )
+        assert override_result == coordinator.override_response
+        assert identity_result == coordinator.identity_feedback_response
+        assert decision_result == coordinator.ingredient_decision_response
+        assert planner_result == coordinator.planner_response
         hass.data[integration._RECIPE_SERVICE_RUNTIME_KEY] = (
             integration._RecipeServiceRuntime()
         )
@@ -1942,6 +2390,22 @@ def test_setup_registers_and_unload_removes_recipe_services() -> None:
         assert (
             integration.DOMAIN,
             "recipe_grocery_add",
+        ) not in hass.services.registered
+        assert (
+            integration.DOMAIN,
+            "recipe_ingredient_override",
+        ) not in hass.services.registered
+        assert (
+            integration.DOMAIN,
+            "recipe_identity_feedback",
+        ) not in hass.services.registered
+        assert (
+            integration.DOMAIN,
+            "recipe_ingredient_decision",
+        ) not in hass.services.registered
+        assert (
+            integration.DOMAIN,
+            "recipe_planner_add",
         ) not in hass.services.registered
         assert integration._RECIPE_SERVICE_RUNTIME_KEY not in hass.data
     finally:

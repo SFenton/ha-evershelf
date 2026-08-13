@@ -19,6 +19,10 @@ from .recipe_api import (
     recipe_detail_request,
     recipe_grocery_add_request,
     recipe_hydration_request,
+    recipe_identity_feedback_request,
+    recipe_ingredient_decision_request,
+    recipe_ingredient_override_request,
+    recipe_planner_add_request,
     recipe_query_request,
 )
 
@@ -58,6 +62,9 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.recipe_catalog_supported = False
         self.recipe_detail_supported = False
         self.recipe_grocery_supported = False
+        self.recipe_ingredient_feedback_supported = False
+        self.recipe_ingredient_feedback_v2_supported = False
+        self.recipe_planner_supported = False
         self._capability_probe_lock = asyncio.Lock()
         self._capability_last_attempt: float | None = None
         self._capability_last_success: float | None = None
@@ -239,6 +246,15 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.recipe_catalog_supported = "recipe_catalog_v2" in self.capabilities
         self.recipe_detail_supported = "recipe_detail_v1" in self.capabilities
         self.recipe_grocery_supported = "recipe_grocery_v1" in self.capabilities
+        self.recipe_ingredient_feedback_supported = (
+            "recipe_ingredient_feedback_v1" in self.capabilities
+        )
+        self.recipe_ingredient_feedback_v2_supported = (
+            "recipe_ingredient_feedback_v2" in self.capabilities
+        )
+        self.recipe_planner_supported = (
+            "recipe_planner_v1" in self.capabilities
+        )
 
     async def async_load_capabilities(self) -> bool:
         """Refresh capabilities without downgrading on transient probe errors."""
@@ -574,6 +590,66 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             action,
             payload,
             timeout=30,
+            preserve_errors=True,
+        )
+
+    async def async_recipe_ingredient_override(
+        self,
+        data: Mapping[str, object],
+    ) -> dict[str, Any] | None:
+        """Persist one display-only ingredient availability override."""
+        method, action, payload = recipe_ingredient_override_request(data)
+        if method != "POST":
+            raise ValueError("ingredient override request must use POST")
+        return await self._post_json(
+            action,
+            payload,
+            timeout=30,
+            preserve_errors=True,
+        )
+
+    async def async_recipe_identity_feedback(
+        self,
+        data: Mapping[str, object],
+    ) -> dict[str, Any] | None:
+        """Record explicit ingredient identity feedback."""
+        method, action, payload = recipe_identity_feedback_request(data)
+        if method != "POST":
+            raise ValueError("identity feedback request must use POST")
+        return await self._post_json(
+            action,
+            payload,
+            timeout=30,
+            preserve_errors=True,
+        )
+
+    async def async_recipe_ingredient_decision(
+        self,
+        data: Mapping[str, object],
+    ) -> dict[str, Any] | None:
+        """Submit one atomic ingredient availability/identity decision."""
+        method, action, payload = recipe_ingredient_decision_request(data)
+        if method != "POST":
+            raise ValueError("ingredient decision request must use POST")
+        return await self._post_json(
+            action,
+            payload,
+            timeout=30,
+            preserve_errors=True,
+        )
+
+    async def async_recipe_planner_add(
+        self,
+        data: Mapping[str, object],
+    ) -> dict[str, Any] | None:
+        """Assign one Cookidoo-origin recipe to an account My Week date."""
+        method, action, payload = recipe_planner_add_request(data)
+        if method != "POST":
+            raise ValueError("recipe planner request must use POST")
+        return await self._post_json(
+            action,
+            payload,
+            timeout=60,
             preserve_errors=True,
         )
 

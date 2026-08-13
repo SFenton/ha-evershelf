@@ -1,4 +1,5 @@
 import importlib.util
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -23,6 +24,16 @@ evershelf_params = api_auth.evershelf_params
 evershelf_headers = api_auth.evershelf_headers
 recipe_detail_request = recipe_api.recipe_detail_request
 recipe_grocery_add_request = recipe_api.recipe_grocery_add_request
+recipe_ingredient_override_request = (
+    recipe_api.recipe_ingredient_override_request
+)
+recipe_identity_feedback_request = (
+    recipe_api.recipe_identity_feedback_request
+)
+recipe_ingredient_decision_request = (
+    recipe_api.recipe_ingredient_decision_request
+)
+recipe_planner_add_request = recipe_api.recipe_planner_add_request
 recipe_hydration_request = recipe_api.recipe_hydration_request
 recipe_query_request = recipe_api.recipe_query_request
 
@@ -148,6 +159,111 @@ def test_recipe_grocery_request_uses_bounded_post_shape() -> None:
     )
 
 
+def test_recipe_feedback_requests_are_bounded() -> None:
+    common = {
+        "recipe_id": 42,
+        "ingredient_key": "ri:2:0123456789abcdef",
+        "position": 2,
+        "feedback_token": "a" * 64,
+        "idempotency_key": "feedback-42",
+        "config_entry_id": "ignored",
+    }
+    assert recipe_ingredient_override_request(
+        common | {"availability": "have"}
+    ) == (
+        "POST",
+        "recipe_catalog_ingredient_override",
+        {
+            "recipe_id": 42,
+            "ingredient_key": "ri:2:0123456789abcdef",
+            "position": 2,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "feedback-42",
+            "availability": "have",
+        },
+    )
+    assert recipe_identity_feedback_request(
+        common
+        | {
+            "verdict": "wrong",
+            "target_kind": "closest_match",
+        }
+    ) == (
+        "POST",
+        "recipe_catalog_identity_feedback",
+        {
+            "recipe_id": 42,
+            "ingredient_key": "ri:2:0123456789abcdef",
+            "position": 2,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "feedback-42",
+            "verdict": "wrong",
+            "target_kind": "closest_match",
+        },
+    )
+
+
+def test_recipe_decision_and_planner_requests_are_bounded() -> None:
+    common = {
+        "recipe_id": 42,
+        "ingredient_key": "ri:2:0123456789abcdef",
+        "position": 2,
+        "feedback_token": "a" * 64,
+        "idempotency_key": "decision-42",
+    }
+    assert recipe_ingredient_decision_request(
+        common
+        | {
+            "action": "select_inventory_product",
+            "selected_product_id": 91,
+            "action_origin": "react_dashboard",
+        }
+    ) == (
+        "POST",
+        "recipe_catalog_ingredient_decision",
+        {
+            "recipe_id": 42,
+            "ingredient_key": "ri:2:0123456789abcdef",
+            "position": 2,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "decision-42",
+            "action": "select_inventory_product",
+            "action_origin": "react_dashboard",
+            "selected_product_id": 91,
+        },
+    )
+    assert recipe_ingredient_decision_request(
+        common
+        | {
+            "action": "reject_current_match",
+            "expected_target_product_id": 91,
+        }
+    )[2]["expected_target_product_id"] == 91
+    assert recipe_ingredient_decision_request(
+        common | {"action": "assume_have"}
+    )[2]["action_origin"] == "home_assistant"
+
+    planned_date = (date.today() + timedelta(days=1)).isoformat()
+    assert recipe_planner_add_request(
+        {
+            "recipe_id": 42,
+            "date": planned_date,
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "planner-42",
+            "external_id": "must-not-pass-through",
+        }
+    ) == (
+        "POST",
+        "recipe_catalog_planner_add",
+        {
+            "recipe_id": 42,
+            "date": planned_date,
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "planner-42",
+        },
+    )
+
+
 def test_recipe_request_builders_reject_invalid_inputs() -> None:
     invalid_detail = (0, -1, True, "1")
     for recipe_id in invalid_detail:
@@ -187,3 +303,76 @@ def test_recipe_request_builders_reject_invalid_inputs() -> None:
             pass
         else:
             raise AssertionError("expected invalid grocery request")
+
+    invalid_feedback = (
+        {
+            "recipe_id": 1,
+            "ingredient_key": "invalid",
+            "position": 0,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "valid",
+            "availability": "have",
+        },
+        {
+            "recipe_id": 1,
+            "ingredient_key": "ri:0:0123456789abcdef",
+            "position": 0,
+            "feedback_token": "short",
+            "idempotency_key": "valid",
+            "availability": "have",
+        },
+    )
+    for payload in invalid_feedback:
+        try:
+            recipe_ingredient_override_request(payload)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected invalid feedback request")
+
+    for payload in (
+        {
+            "recipe_id": 1,
+            "ingredient_key": "ri:0:0123456789abcdef",
+            "position": 0,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "valid",
+            "action": "select_inventory_product",
+        },
+        {
+            "recipe_id": 1,
+            "ingredient_key": "ri:0:0123456789abcdef",
+            "position": 0,
+            "feedback_token": "a" * 64,
+            "idempotency_key": "valid",
+            "action": "assume_have",
+            "selected_product_id": 5,
+        },
+    ):
+        try:
+            recipe_ingredient_decision_request(payload)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected invalid ingredient decision")
+
+    for payload in (
+        {
+            "recipe_id": 1,
+            "date": "2020-01-01",
+            "provider_action_token": "b" * 64,
+            "idempotency_key": "valid",
+        },
+        {
+            "recipe_id": 1,
+            "date": (date.today() + timedelta(days=1)).isoformat(),
+            "provider_action_token": "short",
+            "idempotency_key": "valid",
+        },
+    ):
+        try:
+            recipe_planner_add_request(payload)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("expected invalid planner request")
