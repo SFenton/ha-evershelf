@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.5] - 2026-08-14
+
+### Fixed
+- Extended the bounded expiry service deadline to allow the local Copilot
+  Gemini vision fallback to complete after Tesseract returns no text.
+
 ## [1.3.4] - 2026-08-14
 
 ### Fixed

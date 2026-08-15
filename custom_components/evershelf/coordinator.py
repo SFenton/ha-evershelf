@@ -759,7 +759,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return await self._post_json(
             "gemini_expiry",
             {"image": image_base64},
-            timeout=16,
+            timeout=21,
             preserve_errors=True,
         )
 
