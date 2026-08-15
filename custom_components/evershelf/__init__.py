@@ -595,6 +595,15 @@ _READ_EXPIRY_IMAGE_SCHEMA = vol.Schema(
 
 _ADD_SCANNED_ITEM_SCHEMA = vol.Schema(
     {
+        vol.Optional("idempotency_key"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Length(
+                min=1,
+                max=RECIPE_IDEMPOTENCY_KEY_MAX_LENGTH,
+            ),
+            vol.Match(RECIPE_IDEMPOTENCY_KEY_PATTERN.pattern),
+        ),
         vol.Optional("product_id"): vol.All(vol.Coerce(int), vol.Range(min=1)),
         vol.Required("name"): cv.string,
         vol.Optional("barcode"): cv.string,

@@ -1121,6 +1121,241 @@ def test_coordinator_recipe_methods_use_request_builders() -> None:
     ]
 
 
+def test_scanned_item_forwards_stable_inventory_idempotency_key() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    inventory_payloads = []
+
+    async def fake_save_product(payload):
+        assert payload["name"] == "Buttermilk"
+        return {"success": True, "id": 186}
+
+    async def fake_add_inventory(payload):
+        inventory_payloads.append(dict(payload))
+        return {"success": True, "new_qty": 1}
+
+    coordinator.async_save_product = fake_save_product
+    coordinator.async_add_inventory = fake_add_inventory
+    result = asyncio.run(
+        coordinator.async_add_scanned_item(
+            {
+                "idempotency_key": "scan-session-186",
+                "name": "Buttermilk",
+                "quantity": 1,
+                "location": "frigo",
+                "expiry_date": "2026-08-26",
+            }
+        )
+    )
+
+    assert result["success"] is True
+    assert result["idempotency_key"] == "scan-session-186"
+    assert inventory_payloads == [
+        {
+            "idempotency_key": "scan-session-186",
+            "product_id": 186,
+            "quantity": 1,
+            "location": "frigo",
+            "expiry_date": "2026-08-26",
+        }
+    ]
+
+
+def test_scanned_item_generates_inventory_idempotency_key() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    inventory_payloads = []
+
+    async def fake_add_inventory(payload):
+        inventory_payloads.append(dict(payload))
+        return {"success": True, "new_qty": 1}
+
+    coordinator.async_add_inventory = fake_add_inventory
+    result = asyncio.run(
+        coordinator.async_add_scanned_item(
+            {
+                "product_id": 187,
+                "name": "Pumpkin Spice Latte",
+                "quantity": 1,
+                "location": "frigo",
+            }
+        )
+    )
+
+    generated = result["idempotency_key"]
+    assert re.fullmatch(
+        integration.RECIPE_IDEMPOTENCY_KEY_PATTERN.pattern,
+        generated,
+    )
+    assert inventory_payloads[0]["idempotency_key"] == generated
+
+
+def test_scanned_item_stops_when_prepared_food_update_fails() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    inventory_calls = []
+
+    async def fake_set_prepared_food(_product_id, _prepared):
+        return {"success": False, "error": "database_busy"}
+
+    async def fake_add_inventory(payload):
+        inventory_calls.append(payload)
+        return {"success": True}
+
+    coordinator.async_set_prepared_food = fake_set_prepared_food
+    coordinator.async_add_inventory = fake_add_inventory
+    result = asyncio.run(
+        coordinator.async_add_scanned_item(
+            {
+                "product_id": 188,
+                "name": "Prepared meal",
+                "prepared_food": True,
+            }
+        )
+    )
+
+    assert result["success"] is False
+    assert result["stage"] == "product_set_prepared_food"
+    assert result["error"] == "database_busy"
+    assert inventory_calls == []
+
+
+def test_post_json_retries_explicit_database_busy(monkeypatch) -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    responses = [
+        SimpleNamespace(
+            status=503,
+            headers={"Retry-After": "0.25"},
+            json=lambda **_kwargs: None,
+        ),
+        SimpleNamespace(
+            status=200,
+            headers={},
+            json=lambda **_kwargs: None,
+        ),
+    ]
+    payloads = [
+        {"success": False, "error": "database_busy"},
+        {"success": True},
+    ]
+    calls = []
+    delays = []
+
+    class FakeResponseContext:
+        def __init__(self, response, payload):
+            self.response = response
+            self.payload = payload
+
+        async def __aenter__(self):
+            async def response_json(**_kwargs):
+                return self.payload
+
+            self.response.json = response_json
+            return self.response
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class FakeSession:
+        def post(self, _url, **kwargs):
+            calls.append(kwargs)
+            return FakeResponseContext(responses.pop(0), payloads.pop(0))
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    coordinator._session = lambda: FakeSession()
+    coordinator_module = sys.modules[coordinator.__class__.__module__]
+    monkeypatch.setattr(coordinator_module.asyncio, "sleep", fake_sleep)
+
+    result = asyncio.run(
+        coordinator._post_json(
+            "inventory_add",
+            {"product_id": 1},
+            preserve_errors=True,
+            busy_retries=1,
+        )
+    )
+
+    assert result == {"success": True}
+    assert len(calls) == 2
+    assert delays == [0.25]
+
+
+def test_post_json_does_not_retry_ambiguous_timeout() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    calls = []
+
+    class FailingResponseContext:
+        async def __aenter__(self):
+            raise asyncio.TimeoutError
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class FakeSession:
+        def post(self, _url, **kwargs):
+            calls.append(kwargs)
+            return FailingResponseContext()
+
+    coordinator._session = lambda: FakeSession()
+    result = asyncio.run(
+        coordinator._post_json(
+            "inventory_add",
+            {"product_id": 1},
+            preserve_errors=True,
+            busy_retries=3,
+        )
+    )
+
+    assert result is None
+    assert len(calls) == 1
+
+
+def test_scanned_item_schema_validates_idempotency_key() -> None:
+    valid = integration._ADD_SCANNED_ITEM_SCHEMA(
+        {
+            "idempotency_key": "scan-session:valid_1",
+            "name": "Mayonnaise",
+        }
+    )
+    assert valid["idempotency_key"] == "scan-session:valid_1"
+    with pytest.raises(vol.Invalid):
+        integration._ADD_SCANNED_ITEM_SCHEMA(
+            {
+                "idempotency_key": "contains spaces",
+                "name": "Mayonnaise",
+            }
+        )
+
+
 def test_coordinator_loads_recipe_capabilities_independently() -> None:
     hass = FakeHass()
     coordinator = integration.EverShelfCoordinator(

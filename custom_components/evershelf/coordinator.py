@@ -7,6 +7,7 @@ from datetime import timedelta
 import logging
 import time
 from typing import Any
+import uuid
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -34,6 +35,7 @@ CAPABILITY_UNAVAILABLE = "unavailable"
 
 _CAPABILITY_REFRESH_INTERVAL_SECONDS = 15 * 60
 _CAPABILITY_PROBE_COOLDOWN_SECONDS = 30
+_BUSY_RETRY_DELAYS_SECONDS = (0.25, 0.5, 1.0)
 
 
 class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -413,20 +415,38 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         payload: dict[str, Any],
         timeout: int = 15,
         preserve_errors: bool = False,
+        busy_retries: int = 0,
     ) -> dict[str, Any] | None:
         """POST request returning parsed JSON or None on error."""
-        try:
-            async with self._session().post(
-                f"{self.url}/api/index.php",
-                params=self._params({"action": action}),
-                headers=self._headers(json_body=True),
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as resp:
-                data = await self._decode_json_response(resp, action)
-                return data if resp.status == 200 or preserve_errors else None
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
-            _LOGGER.error("EverShelf %s error: %s", action, err)
+        retries = max(0, min(busy_retries, len(_BUSY_RETRY_DELAYS_SECONDS)))
+        for attempt in range(retries + 1):
+            try:
+                async with self._session().post(
+                    f"{self.url}/api/index.php",
+                    params=self._params({"action": action}),
+                    headers=self._headers(json_body=True),
+                    json=payload,
+                    timeout=aiohttp.ClientTimeout(total=timeout),
+                ) as resp:
+                    data = await self._decode_json_response(resp, action)
+                    if resp.status == 503 and attempt < retries:
+                        configured_delay = _BUSY_RETRY_DELAYS_SECONDS[attempt]
+                        try:
+                            retry_after = float(resp.headers.get("Retry-After", ""))
+                        except (TypeError, ValueError):
+                            retry_after = configured_delay
+                        delay = max(0.1, min(2.0, retry_after))
+                        _LOGGER.warning(
+                            "EverShelf %s busy; retrying in %.2fs",
+                            action,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    return data if resp.status == 200 or preserve_errors else None
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+                _LOGGER.error("EverShelf %s error: %s", action, err)
+                return None
         return None
 
     async def _get_json(
@@ -685,7 +705,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return await self._get_json(
             "resolve_barcode",
             {"barcode": barcode},
-            timeout=45,
+            timeout=12,
         )
 
     async def async_suggest_location(
@@ -739,16 +759,29 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return await self._post_json(
             "gemini_expiry",
             {"image": image_base64},
-            timeout=60,
+            timeout=16,
+            preserve_errors=True,
         )
 
     async def async_save_product(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Create or update an EverShelf product and return the API response."""
-        return await self._post_json("product_save", payload, timeout=30)
+        return await self._post_json(
+            "product_save",
+            payload,
+            timeout=30,
+            preserve_errors=True,
+            busy_retries=3,
+        )
 
     async def async_add_inventory(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Add quantity to an EverShelf inventory expiry batch and return the API response."""
-        return await self._post_json("inventory_add", payload, timeout=30)
+        return await self._post_json(
+            "inventory_add",
+            payload,
+            timeout=30,
+            preserve_errors=True,
+            busy_retries=3,
+        )
 
     async def async_set_prepared_food(self, product_id: int, prepared: bool) -> dict[str, Any] | None:
         """Flag an existing product as prepared food and re-queue its taxonomy grouping."""
@@ -756,6 +789,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "product_set_prepared_food",
             {"id": int(product_id), "prepared_food": bool(prepared)},
             timeout=30,
+            preserve_errors=True,
+            busy_retries=3,
         )
 
     async def async_set_inventory_prepared_food(
@@ -772,6 +807,9 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         product_id = item.get("product_id")
         product_response: dict[str, Any] | None = None
         prepared_food = bool(item.get("prepared_food"))
+        idempotency_key = str(item.get("idempotency_key") or "").strip()
+        if not idempotency_key:
+            idempotency_key = uuid.uuid4().hex
 
         if product_id is None:
             product_payload: dict[str, Any] = {}
@@ -807,6 +845,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "stage": "product_save",
                     "error": "product_save_failed",
                     "message": "Could not save the scanned product.",
+                    "idempotency_key": idempotency_key,
                 }
             if product_response.get("success") is not True or not product_response.get("id"):
                 return {
@@ -814,15 +853,46 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "stage": "product_save",
                     "error": product_response.get("error", "product_save_failed"),
                     "message": product_response.get("message", "Could not save the scanned product."),
+                    "idempotency_key": idempotency_key,
                     "product": product_response,
                 }
             product_id = product_response["id"]
         elif prepared_food:
             # Existing product: product_save rewrites every column from its input, so the
             # flag is set through the dedicated endpoint instead of a partial save.
-            await self.async_set_prepared_food(int(product_id), True)
+            prepared_response = await self.async_set_prepared_food(
+                int(product_id),
+                True,
+            )
+            if (
+                prepared_response is None
+                or prepared_response.get("success") is not True
+            ):
+                return {
+                    "success": False,
+                    "stage": "product_set_prepared_food",
+                    "error": (
+                        prepared_response.get(
+                            "error",
+                            "product_set_prepared_food_failed",
+                        )
+                        if prepared_response is not None
+                        else "product_set_prepared_food_failed"
+                    ),
+                    "message": (
+                        prepared_response.get(
+                            "message",
+                            "Could not mark the scanned product as prepared food.",
+                        )
+                        if prepared_response is not None
+                        else "Could not mark the scanned product as prepared food."
+                    ),
+                    "idempotency_key": idempotency_key,
+                    "product_id": int(product_id),
+                }
 
         inventory_payload: dict[str, Any] = {
+            "idempotency_key": idempotency_key,
             "product_id": int(product_id),
             "quantity": item.get("quantity", 1),
             "location": item.get("location", "dispensa"),
@@ -848,6 +918,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "stage": "inventory_add",
                 "error": "inventory_add_failed",
                 "message": "Could not add the scanned product to inventory.",
+                "idempotency_key": idempotency_key,
                 "product_id": int(product_id),
                 "product": product_response,
             }
@@ -857,6 +928,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "stage": "inventory_add",
                 "error": inventory_response.get("error", "inventory_add_failed"),
                 "message": inventory_response.get("message", "Could not add the scanned product to inventory."),
+                "idempotency_key": idempotency_key,
                 "product_id": int(product_id),
                 "product": product_response,
                 "inventory": inventory_response,
@@ -864,6 +936,7 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         return {
             "success": True,
+            "idempotency_key": idempotency_key,
             "product_id": int(product_id),
             "product": product_response,
             "inventory": inventory_response,

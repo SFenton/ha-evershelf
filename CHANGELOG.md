@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.4] - 2026-08-14
+
+### Fixed
+- `add_scanned_item` now carries a stable idempotency key through inventory
+  writes so a retry cannot add the same scanned package twice.
+- Product and inventory scan requests retry only explicit HTTP 503 database-busy
+  responses with a bounded delay; ambiguous network failures are not retried.
+- Barcode, location, and expiry scan calls now use bounded client deadlines
+  aligned with EverShelf's local/Copilot processing limits.
+
 ## [1.3.3] - 2026-08-12
 
 ### Added

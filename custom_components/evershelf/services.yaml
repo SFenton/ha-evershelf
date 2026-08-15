@@ -794,8 +794,14 @@ read_expiry_image:
 
 add_scanned_item:
   name: Add Scanned Item
-  description: Save a scanned product if needed and add it to EverShelf inventory. Matching unopened inventory batches merge only when product, location, expiry date, and sealed state match.
+  description: Save a scanned product if needed and add it to EverShelf inventory with bounded busy retries and idempotent inventory writes. Matching unopened inventory batches merge only when product, location, expiry date, and sealed state match.
   fields:
+    idempotency_key:
+      name: Idempotency key
+      description: Optional stable command key. Reusing it with the same payload safely replays the original inventory result instead of adding stock twice.
+      required: false
+      selector:
+        text:
     product_id:
       name: Product ID
       description: Existing EverShelf product ID. When omitted, the service creates or merges a product first.
