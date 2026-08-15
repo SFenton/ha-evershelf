@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.6] - 2026-08-14
+
+### Changed
+- Expiry requests now allow the bounded Gemini-first vision pass plus local OCR
+  fallback to complete within the service deadline.
+
 ## [1.3.5] - 2026-08-14
 
 ### Fixed
