@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-08-16
+
+### Added
+- Processing phase, pending-work, recipe-score revision, and source-ingredient
+  ontology coverage sensors.
+- Processing activity/problem, stale-score, and ontology-provider availability
+  binary sensors.
+
+### Fixed
+- Safe GET requests such as barcode resolution now retry explicit HTTP 503
+  database-busy responses without retrying ambiguous network failures.
+- Mark-used inventory updates call the supported row-specific EverShelf route,
+  require the `inventory_decrement_v1` capability before posting, request an
+  atomic decrement, validate an optional unit, and succeed only when EverShelf
+  confirms a positive consumed quantity. They use the same explicit
+  database-busy retry policy without retrying unrelated HTTP 503 responses.
+- Barcode service calls now raise preserved backend failures instead of
+  returning a failure envelope as a successful Home Assistant response.
+
 ## [1.3.6] - 2026-08-14
 
 ### Changed

@@ -30,6 +30,7 @@ class EverShelfSensorDescription(SensorEntityDescription):
     extra_attr_keys: tuple[str, ...] = ()
     # If True, the sensor is only available when price tracking is enabled
     requires_price: bool = False
+    requires_processing_status: bool = False
 
 
 SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
@@ -184,6 +185,65 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         state_class=SensorStateClass.MEASUREMENT,
         data_key="days_to_next_expiry",
     ),
+    EverShelfSensorDescription(
+        key="processing_phase",
+        translation_key="processing_phase",
+        icon="mdi:progress-clock",
+        data_key="processing_phase",
+        requires_processing_status=True,
+        extra_attr_keys=(
+            "processing_observed_at",
+            "processing_oldest_job_at",
+            "processing_oldest_age_seconds",
+            "processing_last_error",
+            "processing_logging_healthy",
+        ),
+    ),
+    EverShelfSensorDescription(
+        key="processing_pending",
+        translation_key="processing_pending",
+        icon="mdi:format-list-numbered",
+        native_unit_of_measurement="jobs",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="processing_pending",
+        requires_processing_status=True,
+        extra_attr_keys=(
+            "processing_recipe_jobs",
+            "processing_ontology_jobs",
+            "processing_ontology_deferred",
+            "processing_missing_recipe_observations",
+        ),
+    ),
+    EverShelfSensorDescription(
+        key="recipe_score_revision",
+        translation_key="recipe_score_revision",
+        icon="mdi:chart-box-outline",
+        data_key="recipe_score_revision",
+        requires_processing_status=True,
+        extra_attr_keys=(
+            "recipe_score_status",
+            "recipe_score_inventory_revision",
+            "recipe_score_built_inventory_revision",
+            "recipe_score_catalog_revision",
+            "recipe_score_built_catalog_revision",
+            "recipe_score_source_revision",
+            "recipe_score_built_source_revision",
+        ),
+    ),
+    EverShelfSensorDescription(
+        key="recipe_source_ontology_coverage",
+        translation_key="recipe_source_ontology_coverage",
+        icon="mdi:graph-outline",
+        native_unit_of_measurement="%",
+        state_class=SensorStateClass.MEASUREMENT,
+        data_key="recipe_source_ontology_coverage",
+        requires_processing_status=True,
+        extra_attr_keys=(
+            "recipe_source_ontology_rows",
+            "recipe_source_ontology_covered",
+            "recipe_source_ontology_missing",
+        ),
+    ),
 )
 
 
@@ -242,6 +302,13 @@ class EverShelfSensor(CoordinatorEntity[EverShelfCoordinator], SensorEntity):
             return False
         if self.entity_description.requires_price:
             return bool(self.coordinator.data.get("price_tracking_enabled", False))
+        if self.entity_description.requires_processing_status:
+            return bool(
+                self.coordinator.data.get(
+                    "processing_status_available",
+                    False,
+                )
+            )
         return True
 
     @property

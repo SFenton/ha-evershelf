@@ -125,6 +125,18 @@
       },
       "days_to_next_expiry": {
         "name": "Jours avant la prochaine expiration"
+      },
+      "processing_phase": {
+        "name": "Phase de traitement"
+      },
+      "processing_pending": {
+        "name": "Traitement en attente"
+      },
+      "recipe_score_revision": {
+        "name": "Révision du score des recettes"
+      },
+      "recipe_source_ontology_coverage": {
+        "name": "Couverture ontologique des ingrédients source"
       }
     },
     "binary_sensor": {
@@ -148,6 +160,18 @@
       },
       "bring_connected": {
         "name": "Bring! Connecté"
+      },
+      "processing_active": {
+        "name": "Traitement actif"
+      },
+      "processing_problem": {
+        "name": "Problème de traitement"
+      },
+      "recipe_scores_stale": {
+        "name": "Scores de recettes obsolètes"
+      },
+      "ontology_provider_unavailable": {
+        "name": "Fournisseur d’ontologie indisponible"
       }
     },
     "button": {

@@ -125,6 +125,18 @@
       },
       "days_to_next_expiry": {
         "name": "Tage bis zum nächsten Ablaufdatum"
+      },
+      "processing_phase": {
+        "name": "Verarbeitungsphase"
+      },
+      "processing_pending": {
+        "name": "Ausstehende Verarbeitung"
+      },
+      "recipe_score_revision": {
+        "name": "Rezeptbewertungsrevision"
+      },
+      "recipe_source_ontology_coverage": {
+        "name": "Ontologieabdeckung der Quellzutaten"
       }
     },
     "binary_sensor": {
@@ -148,6 +160,18 @@
       },
       "bring_connected": {
         "name": "Bring! Verbunden"
+      },
+      "processing_active": {
+        "name": "Verarbeitung aktiv"
+      },
+      "processing_problem": {
+        "name": "Verarbeitungsproblem"
+      },
+      "recipe_scores_stale": {
+        "name": "Rezeptbewertungen veraltet"
+      },
+      "ontology_provider_unavailable": {
+        "name": "Ontologie-Anbieter nicht verfügbar"
       }
     },
     "button": {

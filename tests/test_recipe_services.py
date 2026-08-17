@@ -368,6 +368,11 @@ class FakeCoordinator:
             "account_scope": "configured_account",
             "replayed": False,
         }
+        self.barcode_response = {
+            "found": True,
+            "source": "local",
+            "product": {"id": 42, "name": "Tomatoes"},
+        }
         self.events = []
         self.grocery_requests = []
         self.override_requests = []
@@ -425,6 +430,10 @@ class FakeCoordinator:
         self.events.append(("backend_planner", request["recipe_id"]))
         self.planner_requests.append(dict(request))
         return self.planner_response
+
+    async def async_resolve_barcode(self, barcode):
+        self.events.append(("resolve_barcode", barcode))
+        return self.barcode_response
 
     async def async_request_refresh(self):
         self.events.append(("refresh", None))
@@ -1121,6 +1130,320 @@ def test_coordinator_recipe_methods_use_request_builders() -> None:
     ]
 
 
+def test_coordinator_get_retries_only_explicit_database_busy() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    coordinator_module = sys.modules[coordinator.__class__.__module__]
+    responses = [
+        (503, {"success": False, "error": "database_busy"}),
+        (200, {"success": True, "found": True}),
+    ]
+    delays = []
+    calls = []
+
+    class FakeResponse:
+        def __init__(self, status, payload):
+            self.status = status
+            self.payload = payload
+            self.headers = {"Retry-After": "0.1"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def json(self, **_kwargs):
+            return self.payload
+
+    class FakeSession:
+        def get(self, url, **kwargs):
+            calls.append((url, kwargs))
+            status, payload = responses.pop(0)
+            return FakeResponse(status, payload)
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    original_sleep = coordinator_module.asyncio.sleep
+    coordinator._session = lambda: FakeSession()
+    coordinator_module.asyncio.sleep = fake_sleep
+    try:
+        result = asyncio.run(
+            coordinator._get_json(
+                "resolve_barcode",
+                {"barcode": "123"},
+                preserve_errors=True,
+                busy_retries=3,
+            )
+        )
+    finally:
+        coordinator_module.asyncio.sleep = original_sleep
+
+    assert result == {"success": True, "found": True}
+    assert len(calls) == 2
+    assert delays == [0.1]
+
+
+def test_coordinator_get_does_not_retry_unrelated_503() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    calls = []
+    delays = []
+
+    class FakeResponse:
+        status = 503
+        headers = {"Retry-After": "0.1"}
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return False
+
+        async def json(self, **_kwargs):
+            return {
+                "success": False,
+                "error": "rate_limit_unavailable",
+            }
+
+    class FakeSession:
+        def get(self, url, **kwargs):
+            calls.append((url, kwargs))
+            return FakeResponse()
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    coordinator._session = lambda: FakeSession()
+    coordinator_module = sys.modules[coordinator.__class__.__module__]
+    original_sleep = coordinator_module.asyncio.sleep
+    coordinator_module.asyncio.sleep = fake_sleep
+    try:
+        result = asyncio.run(
+            coordinator._get_json(
+                "resolve_barcode",
+                {"barcode": "123"},
+                preserve_errors=True,
+                busy_retries=3,
+            )
+        )
+    finally:
+        coordinator_module.asyncio.sleep = original_sleep
+
+    assert result == {
+        "success": False,
+        "error": "rate_limit_unavailable",
+        "http_status": 503,
+    }
+    assert len(calls) == 1
+    assert delays == []
+
+
+def test_mark_used_calls_inventory_update_and_validates_unit() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    calls = []
+    inventory_unit = "l"
+    capability_status = "supported"
+    inventory_reads = 0
+
+    async def fake_capability_status(capability, *, require_fresh=False):
+        assert capability == "inventory_decrement_v1"
+        assert require_fresh is True
+        return capability_status
+
+    async def fake_get_json(*_args, **_kwargs):
+        nonlocal inventory_reads
+        inventory_reads += 1
+        return {
+            "inventory": [
+                {
+                    "id": 41,
+                    "name": "Olive Oil",
+                    "quantity": 0.75,
+                    "unit": inventory_unit,
+                }
+            ]
+        }
+
+    async def fake_post_json(action, payload, **kwargs):
+        calls.append((action, payload, kwargs))
+        return {
+            "success": True,
+            "used": payload["decrement_quantity"],
+        }
+
+    coordinator.async_capability_status = fake_capability_status
+    coordinator._get_json = fake_get_json
+    coordinator._post_json = fake_post_json
+
+    assert asyncio.run(
+        coordinator.async_mark_used("Olive Oil", 0.1, "L")
+    )
+    assert calls == [
+        (
+            "inventory_update",
+            {
+                "id": 41,
+                "decrement_quantity": 0.1,
+                "unit": "L",
+            },
+            {
+                "timeout": 15,
+                "preserve_errors": True,
+                "busy_retries": 3,
+            },
+        )
+    ]
+
+    calls.clear()
+    assert asyncio.run(
+        coordinator.async_mark_used("Olive Oil", 0.2, None)
+    )
+    assert calls[0][1] == {
+        "id": 41,
+        "decrement_quantity": 0.2,
+    }
+
+    calls.clear()
+    assert not asyncio.run(
+        coordinator.async_mark_used("Olive Oil", 100, "ml")
+    )
+    assert calls == []
+
+    inventory_unit = ""
+    assert not asyncio.run(
+        coordinator.async_mark_used("Olive Oil", 0.1, "l")
+    )
+    assert calls == []
+
+    inventory_unit = "l"
+    async def fake_zero_post(*_args, **_kwargs):
+        return {"success": True, "used": 0}
+
+    coordinator._post_json = fake_zero_post
+    assert not asyncio.run(
+        coordinator.async_mark_used("Olive Oil", 0.1, "l")
+    )
+
+    for invalid_used in (
+        float("nan"),
+        float("inf"),
+        float("-inf"),
+    ):
+        async def fake_nonfinite_post(
+            *_args,
+            invalid_used=invalid_used,
+            **_kwargs,
+        ):
+            return {"success": True, "used": invalid_used}
+
+        coordinator._post_json = fake_nonfinite_post
+        assert not asyncio.run(
+            coordinator.async_mark_used("Olive Oil", 0.1, "l")
+        )
+
+    calls.clear()
+    reads_before_gate = inventory_reads
+    capability_status = "unsupported"
+    assert not asyncio.run(
+        coordinator.async_mark_used("Olive Oil", 0.1, "l")
+    )
+    assert calls == []
+    assert inventory_reads == reads_before_gate
+
+
+def test_mark_used_reprobes_and_blocks_rolled_back_backend() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    responses = [
+        {"capabilities": ["inventory_decrement_v1"]},
+        {"capabilities": ["recipe_catalog_v2"]},
+    ]
+    capability_probes = 0
+
+    async def fake_info():
+        nonlocal capability_probes
+        capability_probes += 1
+        return responses.pop(0)
+
+    async def unexpected_request(*_args, **_kwargs):
+        raise AssertionError("inventory I/O must not run after backend rollback")
+
+    coordinator.async_get_info = fake_info
+    coordinator._get_json = unexpected_request
+    coordinator._post_json = unexpected_request
+
+    async def scenario():
+        assert await coordinator.async_load_capabilities() is True
+        assert coordinator.inventory_decrement_supported is True
+        assert not await coordinator.async_mark_used("Olive Oil", 0.1, "l")
+
+    asyncio.run(scenario())
+    assert capability_probes == 2
+    assert coordinator.inventory_decrement_supported is False
+
+
+def test_mark_used_blocks_when_fresh_capability_probe_fails() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    responses = [
+        {"capabilities": ["inventory_decrement_v1"]},
+        None,
+    ]
+    capability_probes = 0
+
+    async def fake_info():
+        nonlocal capability_probes
+        capability_probes += 1
+        return responses.pop(0)
+
+    async def unexpected_request(*_args, **_kwargs):
+        raise AssertionError(
+            "inventory I/O must not run without a fresh capability proof"
+        )
+
+    coordinator.async_get_info = fake_info
+    coordinator._get_json = unexpected_request
+    coordinator._post_json = unexpected_request
+
+    async def scenario():
+        assert await coordinator.async_load_capabilities() is True
+        assert coordinator.inventory_decrement_supported is True
+        assert not await coordinator.async_mark_used("Olive Oil", 0.1, "l")
+
+    asyncio.run(scenario())
+    assert capability_probes == 2
+    assert coordinator.inventory_decrement_supported is True
+    assert coordinator.capability_probe_failed is True
+
+
 def test_scanned_item_forwards_stable_inventory_idempotency_key() -> None:
     hass = FakeHass()
     coordinator = integration.EverShelfCoordinator(
@@ -1303,6 +1626,64 @@ def test_post_json_retries_explicit_database_busy(monkeypatch) -> None:
     assert delays == [0.25]
 
 
+def test_post_json_does_not_retry_unrelated_503(monkeypatch) -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    calls = []
+    delays = []
+
+    class FakeResponse:
+        status = 503
+        headers = {"Retry-After": "0.25"}
+
+        async def json(self, **_kwargs):
+            return {
+                "success": False,
+                "error": "service_unavailable",
+            }
+
+    class FakeResponseContext:
+        async def __aenter__(self):
+            return FakeResponse()
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class FakeSession:
+        def post(self, _url, **kwargs):
+            calls.append(kwargs)
+            return FakeResponseContext()
+
+    async def fake_sleep(delay):
+        delays.append(delay)
+
+    coordinator._session = lambda: FakeSession()
+    coordinator_module = sys.modules[coordinator.__class__.__module__]
+    monkeypatch.setattr(coordinator_module.asyncio, "sleep", fake_sleep)
+
+    result = asyncio.run(
+        coordinator._post_json(
+            "inventory_add",
+            {"product_id": 1},
+            preserve_errors=True,
+            busy_retries=3,
+        )
+    )
+
+    assert result == {
+        "success": False,
+        "error": "service_unavailable",
+        "http_status": 503,
+    }
+    assert len(calls) == 1
+    assert delays == []
+
+
 def test_post_json_does_not_retry_ambiguous_timeout() -> None:
     hass = FakeHass()
     coordinator = integration.EverShelfCoordinator(
@@ -1373,6 +1754,7 @@ def test_coordinator_loads_recipe_capabilities_independently() -> None:
                 "recipe_grocery_v1",
                 "recipe_ingredient_feedback_v2",
                 "recipe_planner_v1",
+                "inventory_decrement_v1",
             ]
         }
 
@@ -1383,6 +1765,7 @@ def test_coordinator_loads_recipe_capabilities_independently() -> None:
     assert coordinator.recipe_grocery_supported is True
     assert coordinator.recipe_ingredient_feedback_v2_supported is True
     assert coordinator.recipe_planner_supported is True
+    assert coordinator.inventory_decrement_supported is True
 
 
 def test_capability_probe_initial_failure_recovers_after_cooldown() -> None:
@@ -2528,6 +2911,9 @@ def test_setup_registers_and_unload_removes_recipe_services() -> None:
         planner = hass.services.registered[
             (integration.DOMAIN, "recipe_planner_add")
         ]
+        barcode = hass.services.registered[
+            (integration.DOMAIN, "resolve_barcode")
+        ]
         assert (
             detail.supports_response
             is integration.SupportsResponse.ONLY
@@ -2609,10 +2995,29 @@ def test_setup_registers_and_unload_removes_recipe_services() -> None:
                 )
             )
         )
+        barcode_result = asyncio.run(
+            barcode.handler(_service_call({"barcode": "0123456789012"}))
+        )
         assert override_result == coordinator.override_response
         assert identity_result == coordinator.identity_feedback_response
         assert decision_result == coordinator.ingredient_decision_response
         assert planner_result == coordinator.planner_response
+        assert barcode_result == coordinator.barcode_response
+        coordinator.barcode_response = {
+            "success": False,
+            "error": "request_failed",
+            "message": "Barcode provider is temporarily unavailable.",
+            "http_status": 503,
+        }
+        with pytest.raises(
+            integration.ServiceValidationError,
+            match="Barcode provider is temporarily unavailable",
+        ):
+            asyncio.run(
+                barcode.handler(
+                    _service_call({"barcode": "0123456789012"})
+                )
+            )
         hass.data[integration._RECIPE_SERVICE_RUNTIME_KEY] = (
             integration._RecipeServiceRuntime()
         )

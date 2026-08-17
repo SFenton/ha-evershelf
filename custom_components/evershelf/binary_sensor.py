@@ -23,6 +23,8 @@ from .sensor import evershelf_device_info
 @dataclass(frozen=True, kw_only=True)
 class EverShelfBinarySensorDescription(BinarySensorEntityDescription):
     data_key: str = ""
+    requires_processing_status: bool = False
+    invert: bool = False
 
 
 BINARY_SENSOR_DESCRIPTIONS: tuple[EverShelfBinarySensorDescription, ...] = (
@@ -74,6 +76,39 @@ BINARY_SENSOR_DESCRIPTIONS: tuple[EverShelfBinarySensorDescription, ...] = (
         icon="mdi:cart-check",
         data_key="bring_connected",
     ),
+    EverShelfBinarySensorDescription(
+        key="processing_active",
+        translation_key="processing_active",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        icon="mdi:progress-clock",
+        data_key="processing_active",
+        requires_processing_status=True,
+    ),
+    EverShelfBinarySensorDescription(
+        key="processing_problem",
+        translation_key="processing_problem",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:alert-circle-outline",
+        data_key="processing_problem",
+        requires_processing_status=True,
+    ),
+    EverShelfBinarySensorDescription(
+        key="recipe_scores_stale",
+        translation_key="recipe_scores_stale",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:chart-box-outline",
+        data_key="recipe_scores_stale",
+        requires_processing_status=True,
+    ),
+    EverShelfBinarySensorDescription(
+        key="ontology_provider_unavailable",
+        translation_key="ontology_provider_unavailable",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        icon="mdi:robot-off-outline",
+        data_key="ontology_provider_healthy",
+        requires_processing_status=True,
+        invert=True,
+    ),
 )
 
 
@@ -102,6 +137,19 @@ class EverShelfBinarySensor(CoordinatorEntity[EverShelfCoordinator], BinarySenso
         self._attr_device_info = evershelf_device_info(coordinator, entry)
 
     @property
+    def available(self) -> bool:
+        if not super().available:
+            return False
+        if self.entity_description.requires_processing_status:
+            return bool(
+                self.coordinator.data.get(
+                    "processing_status_available",
+                    False,
+                )
+            )
+        return True
+
+    @property
     def is_on(self) -> bool:
         raw = self.coordinator.data.get(self.entity_description.data_key)
         # backup_overdue: ON if last_backup_at is older than 7 days or missing
@@ -115,4 +163,5 @@ class EverShelfBinarySensor(CoordinatorEntity[EverShelfCoordinator], BinarySenso
                 return (dt_util.utcnow() - ts) > timedelta(days=7)
             except Exception:
                 return True
-        return bool(raw)
+        state = bool(raw)
+        return not state if self.entity_description.invert else state

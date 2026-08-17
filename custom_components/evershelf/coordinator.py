@@ -5,6 +5,7 @@ import asyncio
 from collections.abc import Mapping
 from datetime import timedelta
 import logging
+import math
 import time
 from typing import Any
 import uuid
@@ -16,6 +17,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api_auth import evershelf_headers, evershelf_params
 from .const import DEFAULT_EXPIRY_DAYS, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .processing_status import processing_status_data
 from .recipe_api import (
     recipe_detail_request,
     recipe_grocery_add_request,
@@ -67,6 +69,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.recipe_ingredient_feedback_supported = False
         self.recipe_ingredient_feedback_v2_supported = False
         self.recipe_planner_supported = False
+        self.processing_status_supported = False
+        self.inventory_decrement_supported = False
         self._capability_probe_lock = asyncio.Lock()
         self._capability_last_attempt: float | None = None
         self._capability_last_success: float | None = None
@@ -109,48 +113,50 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch sensor overview and shopping list from EverShelf."""
         try:
-            session = self._session()
-
-            # Fetch sensor/inventory data
-            async with session.get(
-                f"{self.url}/api/index.php",
-                params=self._params(
-                    {"action": "ha_sensor", "expiry_days": self.expiry_days}
-                ),
-                headers=self._headers(),
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp:
-                if resp.status == 401:
-                    raise UpdateFailed("EverShelf API token invalid or missing")
-                if resp.status != 200:
-                    raise UpdateFailed(f"HTTP {resp.status} from EverShelf")
-                raw: dict[str, Any] = await resp.json(content_type=None)
-                attrs: dict[str, Any] = raw.get("attributes", {})
-                result: dict[str, Any] = {
-                    "state": raw.get("state", 0),
-                    "shopping_list": [],
-                    **attrs,
-                }
-                # Safety-net: ensure total_items is always set even if the PHP
-                # response structure changes. Uses state value as fallback when
-                # the sensor=total variant is called directly.
-                result.setdefault("total_items", result["state"])
+            raw = await self._get_json(
+                "ha_sensor",
+                {"expiry_days": self.expiry_days},
+                timeout=15,
+                preserve_errors=True,
+                busy_retries=3,
+            )
+            if raw is None:
+                raise UpdateFailed("Cannot reach EverShelf")
+            status = int(raw.get("http_status", 200))
+            if status == 401:
+                raise UpdateFailed("EverShelf API token invalid or missing")
+            if status != 200:
+                raise UpdateFailed(f"HTTP {status} from EverShelf")
+            attrs: dict[str, Any] = raw.get("attributes", {})
+            result: dict[str, Any] = {
+                "state": raw.get("state", 0),
+                "shopping_list": [],
+                **attrs,
+            }
+            # Safety-net: ensure total_items is always set even if the PHP
+            # response structure changes. Uses state value as fallback when
+            # the sensor=total variant is called directly.
+            result.setdefault("total_items", result["state"])
 
             # Fetch shopping list (non-fatal if it fails)
-            try:
-                async with session.get(
-                    f"{self.url}/api/index.php",
-                    params=self._params({"action": "ha_shopping_items"}),
-                    headers=self._headers(),
-                    timeout=aiohttp.ClientTimeout(total=10),
-                ) as resp2:
-                    if resp2.status == 200:
-                        shopping_data = await resp2.json(content_type=None)
-                        result["shopping_list"] = shopping_data.get("items", [])
-            except aiohttp.ClientError:
-                pass  # shopping list failure is non-fatal
+            shopping_data = await self._get_json(
+                "ha_shopping_items",
+                timeout=10,
+                busy_retries=2,
+            )
+            if shopping_data:
+                result["shopping_list"] = shopping_data.get("items", [])
 
             await self.async_load_capabilities()
+            processing_payload: dict[str, Any] | None = None
+            if self.processing_status_supported:
+                processing_payload = await self._get_json(
+                    "processing_status",
+                    timeout=10,
+                    preserve_errors=True,
+                    busy_retries=2,
+                )
+            result.update(processing_status_data(processing_payload))
             return result
 
         except aiohttp.ClientError as err:
@@ -257,16 +263,22 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.recipe_planner_supported = (
             "recipe_planner_v1" in self.capabilities
         )
+        self.processing_status_supported = (
+            "processing_status_v1" in self.capabilities
+        )
+        self.inventory_decrement_supported = (
+            "inventory_decrement_v1" in self.capabilities
+        )
 
-    async def async_load_capabilities(self) -> bool:
+    async def async_load_capabilities(self, *, force: bool = False) -> bool:
         """Refresh capabilities without downgrading on transient probe errors."""
         now = self._capability_clock()
-        if not self._capability_probe_is_due(now):
+        if not force and not self._capability_probe_is_due(now):
             return self._capability_snapshot_is_fresh(now)
 
         async with self._capability_probe_lock:
             now = self._capability_clock()
-            if not self._capability_probe_is_due(now):
+            if not force and not self._capability_probe_is_due(now):
                 return self._capability_snapshot_is_fresh(now)
 
             self._capability_last_attempt = now
@@ -304,9 +316,16 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._capability_probe_failed = False
             return True
 
-    async def async_capability_status(self, capability: str) -> str:
+    async def async_capability_status(
+        self,
+        capability: str,
+        *,
+        require_fresh: bool = False,
+    ) -> str:
         """Return supported, unsupported, or temporarily unavailable."""
-        await self.async_load_capabilities()
+        refreshed = await self.async_load_capabilities(force=require_fresh)
+        if require_fresh and not refreshed:
+            return CAPABILITY_UNAVAILABLE
         if capability in self.capabilities:
             return CAPABILITY_SUPPORTED
         if self._capability_snapshot_is_fresh(self._capability_clock()):
@@ -352,20 +371,30 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         unit: str | None,
     ) -> bool:
         """Reduce the stock of an inventory item by *quantity*."""
-        session = self._session()
         try:
-            async with session.get(
-                f"{self.url}/api/index.php",
-                params=self._params({"action": "inventory_list"}),
-                headers=self._headers(),
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp:
-                if resp.status != 200:
-                    _LOGGER.warning("EverShelf inventory_list returned HTTP %s", resp.status)
-                    return False
-                data: dict[str, Any] = await resp.json(content_type=None)
+            capability_status = await self.async_capability_status(
+                "inventory_decrement_v1",
+                require_fresh=True,
+            )
+            if capability_status != CAPABILITY_SUPPORTED:
+                _LOGGER.warning(
+                    "EverShelf atomic inventory decrement is %s",
+                    capability_status,
+                )
+                return False
 
-            items: list[dict[str, Any]] = data.get("items", [])
+            data = await self._get_json(
+                "inventory_list",
+                timeout=15,
+                preserve_errors=True,
+                busy_retries=3,
+            )
+            if not data or data.get("success") is False:
+                return False
+            items: list[dict[str, Any]] = data.get(
+                "items",
+                data.get("inventory", []),
+            )
             match = next(
                 (i for i in items if i.get("name", "").lower() == name.lower()),
                 None,
@@ -374,18 +403,52 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning("EverShelf: item '%s' not found in inventory", name)
                 return False
 
-            item_id = match["id"]
-            current_qty = float(match.get("quantity", 0))
-            new_qty = max(0.0, current_qty - quantity)
+            requested_unit = (unit or "").strip().casefold()
+            inventory_unit = str(match.get("unit", "")).strip().casefold()
+            if (
+                requested_unit
+                and requested_unit != inventory_unit
+            ):
+                _LOGGER.warning(
+                    "EverShelf: unit '%s' does not match '%s' for item '%s'",
+                    unit,
+                    match.get("unit"),
+                    name,
+                )
+                return False
 
-            async with session.post(
-                f"{self.url}/api/index.php",
-                params=self._params({"action": "update_inventory"}),
-                headers=self._headers(json_body=True),
-                json={"id": item_id, "quantity": new_qty},
-                timeout=aiohttp.ClientTimeout(total=15),
-            ) as resp2:
-                return resp2.status == 200
+            item_id = match["id"]
+            payload: dict[str, Any] = {
+                "id": item_id,
+                "decrement_quantity": quantity,
+            }
+            if unit is not None:
+                payload["unit"] = unit
+
+            updated = await self._post_json(
+                "inventory_update",
+                payload,
+                timeout=15,
+                preserve_errors=True,
+                busy_retries=3,
+            )
+            if not updated or updated.get("success") is not True:
+                return False
+            used = updated.get("used")
+            if (
+                isinstance(used, bool)
+                or not isinstance(used, (int, float))
+                or (
+                    isinstance(used, float)
+                    and not math.isfinite(used)
+                )
+                or used <= 0
+            ):
+                _LOGGER.warning(
+                    "EverShelf inventory decrement reported no consumed stock"
+                )
+                return False
+            return True
 
         except aiohttp.ClientError as err:
             _LOGGER.error("EverShelf mark_used error: %s", err)
@@ -429,7 +492,12 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     timeout=aiohttp.ClientTimeout(total=timeout),
                 ) as resp:
                     data = await self._decode_json_response(resp, action)
-                    if resp.status == 503 and attempt < retries:
+                    if (
+                        resp.status == 503
+                        and isinstance(data, Mapping)
+                        and data.get("error") == "database_busy"
+                        and attempt < retries
+                    ):
                         configured_delay = _BUSY_RETRY_DELAYS_SECONDS[attempt]
                         try:
                             retry_after = float(resp.headers.get("Retry-After", ""))
@@ -455,20 +523,45 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         params: dict | None = None,
         timeout: int = 15,
         preserve_errors: bool = False,
+        busy_retries: int = 0,
     ) -> dict[str, Any] | None:
         """GET request returning parsed JSON or None on error."""
-        try:
-            p = self._params({"action": action, **(params or {})})
-            async with self._session().get(
-                f"{self.url}/api/index.php",
-                params=p,
-                headers=self._headers(),
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as resp:
-                data = await self._decode_json_response(resp, action)
-                return data if resp.status == 200 or preserve_errors else None
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
-            _LOGGER.error("EverShelf %s error: %s", action, err)
+        retries = max(0, min(busy_retries, len(_BUSY_RETRY_DELAYS_SECONDS)))
+        for attempt in range(retries + 1):
+            try:
+                p = self._params({"action": action, **(params or {})})
+                async with self._session().get(
+                    f"{self.url}/api/index.php",
+                    params=p,
+                    headers=self._headers(),
+                    timeout=aiohttp.ClientTimeout(total=timeout),
+                ) as resp:
+                    data = await self._decode_json_response(resp, action)
+                    if (
+                        resp.status == 503
+                        and isinstance(data, Mapping)
+                        and data.get("error") == "database_busy"
+                        and attempt < retries
+                    ):
+                        configured_delay = _BUSY_RETRY_DELAYS_SECONDS[attempt]
+                        try:
+                            retry_after = float(
+                                resp.headers.get("Retry-After", "")
+                            )
+                        except (TypeError, ValueError):
+                            retry_after = configured_delay
+                        delay = max(0.1, min(2.0, retry_after))
+                        _LOGGER.warning(
+                            "EverShelf %s busy; retrying in %.2fs",
+                            action,
+                            delay,
+                        )
+                        await asyncio.sleep(delay)
+                        continue
+                    return data if resp.status == 200 or preserve_errors else None
+            except (aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+                _LOGGER.error("EverShelf %s error: %s", action, err)
+                return None
         return None
 
     # ------------------------------------------------------------------
@@ -706,6 +799,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "resolve_barcode",
             {"barcode": barcode},
             timeout=12,
+            preserve_errors=True,
+            busy_retries=3,
         )
 
     async def async_suggest_location(

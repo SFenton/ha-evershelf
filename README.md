@@ -40,7 +40,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 | Requirement | Details |
 |---|---|
-| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, grocery actions require `recipe_grocery_v1`, atomic ingredient decisions require `recipe_ingredient_feedback_v2`, and the default-off account planner requires `recipe_planner_v1` |
+| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; atomic `mark_used` requires `inventory_decrement_v1` (EverShelf v1.10.0+), recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, grocery actions require `recipe_grocery_v1`, atomic ingredient decisions require `recipe_ingredient_feedback_v2`, and the default-off account planner requires `recipe_planner_v1` |
 | **Home Assistant** | 2024.1.0 or newer |
 | **Network** | HA host must be able to reach the EverShelf server (same LAN or routed) |
 | **SETTINGS_TOKEN** | Optional — needed only for write operations (add to shopping, mark used) |
@@ -51,8 +51,8 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 | Category | What you get |
 |---|---|
-| **18 Sensors** | Expiry counts, stock levels, location breakdown, shopping total, AI usage, last backup, days to next expiry |
-| **6 Binary Sensors** | Expired items, expiring items, expiring today, shopping list active, price tracking, backup overdue, Bring! connected |
+| **22 Sensors** | Inventory, expiry, processing phase/queue depth, recipe-score freshness, ontology coverage, shopping, and backup state |
+| **11 Binary Sensors** | Inventory alerts plus processing activity/failures, stale recipe scores, and ontology-provider availability |
 | **5 Buttons** | Refresh, Refresh Prices, Suggest Recipe (AI), Sync Smart Shopping, Clear Expired |
 | **1 Todo entity** | Shopping list — bidirectional sync (add, remove, check off) |
 | **1 Calendar entity** | All product expiry dates as calendar events |
@@ -66,7 +66,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 ## Entities
 
-### Sensors (18)
+### Sensors (22)
 
 | Entity ID | Name | Unit | Notes |
 |---|---|---|---|
@@ -88,8 +88,12 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | `sensor.evershelf_ai_calls_month` | AI Calls This Month | calls | Gemini API calls used in the current billing month |
 | `sensor.evershelf_last_backup` | Last Backup | — | Timestamp of the latest EverShelf backup |
 | `sensor.evershelf_days_to_next_expiry` | Days to Next Expiry | d | Days until the soonest upcoming expiry across all locations |
+| `sensor.evershelf_processing_phase` | Processing Phase | — | Current backend phase: idle, recipes, ontology, scoring, activating, or degraded |
+| `sensor.evershelf_processing_pending` | Pending Processing Work | jobs | Compact queue total with recipe, ontology, deferred, and missing-observation attributes |
+| `sensor.evershelf_recipe_score_revision` | Recipe Score Revision | — | Active score revision with current and built inventory/catalog/source revisions |
+| `sensor.evershelf_recipe_source_ontology_coverage` | Source Ingredient Ontology Coverage | % | Cookidoo/source ingredient rows with active ontology occurrences |
 
-### Binary Sensors (6)
+### Binary Sensors (11)
 
 | Entity ID | Name | Device Class | ON when |
 |---|---|---|---|
@@ -100,6 +104,10 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | `binary_sensor.evershelf_price_tracking_enabled` | Price Tracking | — | Price estimation is enabled in EverShelf |
 | `binary_sensor.evershelf_backup_overdue` | Backup Overdue | `problem` | No backup in the last 7 days, or no backup ever taken |
 | `binary_sensor.evershelf_bring_connected` | Bring! Connected | `connectivity` | Bring! shopping app is linked and authenticated |
+| `binary_sensor.evershelf_processing_active` | Processing Active | `running` | Any recipe, ontology, activation, observation-backfill, or score-publication work remains |
+| `binary_sensor.evershelf_processing_problem` | Processing Problem | `problem` | Backend reports a worker, activation, logging, queue, or observation-coverage problem |
+| `binary_sensor.evershelf_recipe_scores_stale` | Recipe Scores Stale | `problem` | Active scores do not match current inventory, catalog, source, or score date |
+| `binary_sensor.evershelf_ontology_provider_unavailable` | Ontology Provider Unavailable | `problem` | Ontology intake needs the configured model provider but it is unavailable |
 
 ### Buttons (5)
 
@@ -155,7 +163,11 @@ data:
 
 ### `evershelf.mark_used`
 
-Reduce the stock of an inventory item (case-insensitive name match).
+Reduce one matching inventory row (case-insensitive name match). When supplied,
+`unit` must match the item unit in EverShelf. The reduction is applied
+atomically to the row's current quantity, so concurrent inventory additions or
+consumption are preserved. This service fails closed unless EverShelf advertises
+`inventory_decrement_v1` and confirms that a positive quantity was consumed.
 
 ```yaml
 service: evershelf.mark_used
@@ -527,7 +539,7 @@ SETTINGS_TOKEN=your-strong-random-string
 Enter the same value in HA when configuring the integration.
 The integration sends it only in the `X-API-Token` request header; credentials
 are never placed in EverShelf URLs.
-Without a token the integration runs **read-only** — all 16 sensors, the calendar, and the todo entity (read) still work. Write operations need the token.
+Without a token the integration runs **read-only** — all sensors, the calendar, and the todo entity (read) still work. Write operations need the token.
 
 ### Options
 

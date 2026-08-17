@@ -872,8 +872,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if not barcode:
                 raise ServiceValidationError("EverShelf: barcode is required")
             result = await coord.async_resolve_barcode(barcode)
-            if result is None:
-                raise ServiceValidationError("EverShelf: barcode lookup failed")
+            if result is None or (
+                isinstance(result, dict)
+                and result.get("success") is False
+            ):
+                message = (
+                    result.get("message") or result.get("error")
+                    if isinstance(result, dict)
+                    else "barcode lookup failed"
+                )
+                raise ServiceValidationError(
+                    f"EverShelf: {message or 'barcode lookup failed'}"
+                )
             return result
 
         async def _handle_suggest_location(call: ServiceCall) -> dict:
