@@ -454,6 +454,27 @@ def _backend_outcome(name, outcome, position, amount_text=None):
     }
 
 
+def test_service_error_message_hides_request_diagnostics() -> None:
+    assert integration._service_error_message(
+        {
+            "error": "request_failed",
+            "message": "SQLSTATE inventory at /var/www/html/api/index.php",
+        },
+        "barcode lookup failed",
+    ) == "barcode lookup failed"
+    assert integration._service_error_message(
+        {
+            "error": "database_busy",
+            "message": "EverShelf is briefly busy.",
+        },
+        "request failed",
+    ) == "EverShelf is briefly busy."
+    assert integration._service_error_message(
+        {"error": "invalid_request"},
+        "request failed",
+    ) == "invalid_request"
+
+
 def _grocery_response(outcomes, *, replayed=False):
     summary = {
         "added": 0,
@@ -3011,7 +3032,7 @@ def test_setup_registers_and_unload_removes_recipe_services() -> None:
         }
         with pytest.raises(
             integration.ServiceValidationError,
-            match="Barcode provider is temporarily unavailable",
+            match="barcode lookup failed",
         ):
             asyncio.run(
                 barcode.handler(

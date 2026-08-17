@@ -730,13 +730,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except ValueError as err:
                 raise ServiceValidationError(f"EverShelf: {err}") from err
             if not result or result.get("success") is not True:
-                message = (
-                    result.get("message") or result.get("error")
-                    if isinstance(result, dict)
-                    else "recipe query failed"
+                message = _service_error_message(
+                    result,
+                    "recipe query failed",
                 )
                 raise ServiceValidationError(
-                    f"EverShelf: {message or 'recipe query failed'}"
+                    f"EverShelf: {message}"
                 )
             return result
 
@@ -754,13 +753,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             except ValueError as err:
                 raise ServiceValidationError(f"EverShelf: {err}") from err
             if not result or result.get("success") is not True:
-                message = (
-                    result.get("message") or result.get("error")
-                    if isinstance(result, dict)
-                    else "recipe hydration failed"
+                message = _service_error_message(
+                    result,
+                    "recipe hydration failed",
                 )
                 raise ServiceValidationError(
-                    f"EverShelf: {message or 'recipe hydration failed'}"
+                    f"EverShelf: {message}"
                 )
             return result
 
@@ -876,13 +874,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 isinstance(result, dict)
                 and result.get("success") is False
             ):
-                message = (
-                    result.get("message") or result.get("error")
-                    if isinstance(result, dict)
-                    else "barcode lookup failed"
+                message = _service_error_message(
+                    result,
+                    "barcode lookup failed",
                 )
                 raise ServiceValidationError(
-                    f"EverShelf: {message or 'barcode lookup failed'}"
+                    f"EverShelf: {message}"
                 )
             return result
 
@@ -920,14 +917,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 raise ServiceValidationError("EverShelf: product name is required")
             result = await coord.async_add_scanned_item(item)
             if not result or result.get("success") is not True:
-                if isinstance(result, dict):
-                    message = (
-                        result.get("message")
-                        or result.get("error")
-                        or "scanned item add failed"
-                    )
-                else:
-                    message = "scanned item add failed"
+                message = _service_error_message(
+                    result,
+                    "scanned item add failed",
+                )
                 raise ServiceValidationError(f"EverShelf: {message}")
             await coord.async_request_refresh()
             return result
@@ -1138,6 +1131,22 @@ def _get_coordinator(
             "instances are configured"
         )
     return next(iter(entries.values()))
+
+
+def _service_error_message(
+    result: object,
+    fallback: str,
+) -> str:
+    """Return a public backend error without exposing request diagnostics."""
+    if not isinstance(result, Mapping):
+        return fallback
+    error = result.get("error")
+    if error == "request_failed":
+        return fallback
+    for value in (result.get("message"), error):
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return fallback
 
 
 def _unsupported_capability_response(capability: str) -> dict[str, object]:

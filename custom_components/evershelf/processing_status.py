@@ -12,6 +12,9 @@ _PHASES = {
     "activating",
     "degraded",
 }
+PROCESSING_ERROR_PUBLIC_MESSAGE = (
+    "EverShelf processing needs attention. Check the server logs for details."
+)
 
 
 def _mapping(value: object) -> Mapping[str, Any]:
@@ -123,9 +126,10 @@ def processing_status_data(payload: object) -> dict[str, Any]:
             status.get("observed_at"),
             40,
         ),
-        "processing_last_error": _bounded_text(
-            status.get("last_error"),
-            300,
+        "processing_last_error": (
+            PROCESSING_ERROR_PUBLIC_MESSAGE
+            if _bounded_text(status.get("last_error"), 1)
+            else None
         ),
         "processing_logging_healthy": bool(
             logging_status.get("healthy")

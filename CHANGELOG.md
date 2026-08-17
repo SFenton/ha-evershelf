@@ -23,8 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   atomic decrement, validate an optional unit, and succeed only when EverShelf
   confirms a positive consumed quantity. They use the same explicit
   database-busy retry policy without retrying unrelated HTTP 503 responses.
-- Barcode service calls now raise preserved backend failures instead of
+- Barcode service calls now raise curated backend failures instead of
   returning a failure envelope as a successful Home Assistant response.
+- Generic backend request failures no longer expose server exception details
+  through Home Assistant service validation messages.
+- Processing-status entities expose a safe operator message while raw
+  activation diagnostics remain in EverShelf server logs.
 
 ## [1.3.6] - 2026-08-14
 

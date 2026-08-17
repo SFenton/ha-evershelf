@@ -16,6 +16,9 @@ processing_status = _load_module(
     "custom_components/evershelf/processing_status.py",
 )
 processing_status_data = processing_status.processing_status_data
+PROCESSING_ERROR_PUBLIC_MESSAGE = (
+    processing_status.PROCESSING_ERROR_PUBLIC_MESSAGE
+)
 
 
 def test_processing_status_flattens_bounded_entity_data() -> None:
@@ -91,7 +94,10 @@ def test_processing_status_fails_closed_and_bounds_values() -> None:
                 "phase": "unexpected",
                 "pending": {"total": -10},
                 "oldest_age_seconds": 10**20,
-                "last_error": "x" * 1000,
+                "last_error": (
+                    "SQLSTATE table ontology_activation_imports at "
+                    "/var/www/html/api/lib/ontology_v3/activation.php"
+                ),
                 "recipe_scores": {},
                 "ontology_queue": {},
                 "recipe_source_ontology": {
@@ -103,5 +109,10 @@ def test_processing_status_fails_closed_and_bounds_values() -> None:
     assert data["processing_phase"] == "degraded"
     assert data["processing_pending"] == 0
     assert data["processing_oldest_age_seconds"] == 2_147_483_647
-    assert len(data["processing_last_error"]) == 300
+    assert (
+        data["processing_last_error"]
+        == PROCESSING_ERROR_PUBLIC_MESSAGE
+    )
+    assert "SQLSTATE" not in data["processing_last_error"]
+    assert "/var/www" not in data["processing_last_error"]
     assert data["recipe_source_ontology_coverage"] == 100.0
