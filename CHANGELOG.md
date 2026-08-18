@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.6.0] - 2026-08-18
+
+### Added
+- Processing attributes for pending recipe-score work, active score phase,
+  processed/total recipes, and bounded progress percentage.
+
+### Changed
+- Processing phase entities recognize preparing, publishing, and compacting
+  phases from EverShelf's incremental scoring pipeline.
+
 ## [1.5.0] - 2026-08-17
 
 ### Added

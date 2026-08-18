@@ -58,6 +58,11 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
                 },
                 "incremental_scores": {
                     "pending_product_count": 4,
+                    "pending_recipe_count": 2,
+                    "phase": "scoring",
+                    "processed_recipe_count": 3,
+                    "total_recipe_count": 8,
+                    "progress_percent": 37.5,
                 },
                 "identity_admission": {
                     "inventory_product_count": 18,
@@ -88,6 +93,11 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
     assert data["processing_ontology_jobs"] == 5
     assert data["processing_ontology_deferred"] == 30906
     assert data["processing_score_products"] == 4
+    assert data["processing_score_recipes"] == 2
+    assert data["processing_score_phase"] == "scoring"
+    assert data["processing_score_processed"] == 3
+    assert data["processing_score_total"] == 8
+    assert data["processing_score_progress"] == 37.5
     assert data["recipe_scores_stale"] is True
     assert data["recipe_score_inventory_revision"] == 56
     assert data["recipe_score_built_inventory_revision"] == 43
