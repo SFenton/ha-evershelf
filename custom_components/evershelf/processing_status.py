@@ -8,7 +8,10 @@ _PHASES = {
     "idle",
     "recipes",
     "ontology",
+    "preparing",
     "scoring",
+    "publishing",
+    "compacting",
     "activating",
     "degraded",
 }
@@ -57,6 +60,11 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_ontology_deferred": 0,
         "processing_missing_recipe_observations": 0,
         "processing_score_products": 0,
+        "processing_score_recipes": 0,
+        "processing_score_phase": "idle",
+        "processing_score_processed": 0,
+        "processing_score_total": 0,
+        "processing_score_progress": 0.0,
         "processing_oldest_age_seconds": 0,
         "processing_oldest_job_at": None,
         "processing_observed_at": None,
@@ -125,6 +133,23 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         ),
         "processing_score_products": _bounded_int(
             incremental.get("pending_product_count")
+        ),
+        "processing_score_recipes": _bounded_int(
+            incremental.get("pending_recipe_count")
+        ),
+        "processing_score_phase": _bounded_text(
+            incremental.get("phase"),
+            40,
+        )
+        or "idle",
+        "processing_score_processed": _bounded_int(
+            incremental.get("processed_recipe_count")
+        ),
+        "processing_score_total": _bounded_int(
+            incremental.get("total_recipe_count")
+        ),
+        "processing_score_progress": _bounded_float(
+            incremental.get("progress_percent")
         ),
         "processing_oldest_age_seconds": _bounded_int(
             status.get("oldest_age_seconds")
