@@ -373,12 +373,24 @@ class FakeCoordinator:
             "source": "local",
             "product": {"id": 42, "name": "Tomatoes"},
         }
+        self.prepare_response = {
+            "success": True,
+            "id": 42,
+            "product_fingerprint": "f" * 64,
+        }
+        self.suggestion_response = {
+            "success": True,
+            "location": "frigo",
+            "source": "history_name",
+        }
         self.events = []
         self.grocery_requests = []
         self.override_requests = []
         self.identity_feedback_requests = []
         self.ingredient_decision_requests = []
         self.planner_requests = []
+        self.prepare_requests = []
+        self.suggestion_requests = []
 
     async def async_config_entry_first_refresh(self):
         return None
@@ -434,6 +446,16 @@ class FakeCoordinator:
     async def async_resolve_barcode(self, barcode):
         self.events.append(("resolve_barcode", barcode))
         return self.barcode_response
+
+    async def async_prepare_scanned_product(self, request):
+        self.events.append(("prepare_scanned_product", request.get("id")))
+        self.prepare_requests.append(dict(request))
+        return self.prepare_response
+
+    async def async_suggest_location(self, **request):
+        self.events.append(("suggest_location", request.get("product_id")))
+        self.suggestion_requests.append(dict(request))
+        return self.suggestion_response
 
     async def async_request_refresh(self):
         self.events.append(("refresh", None))
@@ -1579,6 +1601,79 @@ def test_scanned_item_stops_when_prepared_food_update_fails() -> None:
     assert inventory_calls == []
 
 
+def test_scanned_item_applies_explicit_prepared_food_false() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    prepared_calls = []
+    inventory_calls = []
+
+    async def fake_set_prepared_food(product_id, prepared):
+        prepared_calls.append((product_id, prepared))
+        return {"success": True}
+
+    async def fake_add_inventory(payload):
+        inventory_calls.append(dict(payload))
+        return {"success": True}
+
+    coordinator.async_set_prepared_food = fake_set_prepared_food
+    coordinator.async_add_inventory = fake_add_inventory
+    result = asyncio.run(
+        coordinator.async_add_scanned_item(
+            {
+                "product_id": 188,
+                "name": "Prepared meal",
+                "prepared_food": False,
+            }
+        )
+    )
+
+    assert result["success"] is True
+    assert prepared_calls == [(188, False)]
+    assert len(inventory_calls) == 1
+
+
+def test_scanned_item_rejects_idless_barcode_fallback() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    save_calls = []
+    inventory_calls = []
+
+    async def fake_save_product(payload):
+        save_calls.append(dict(payload))
+        return {"success": True, "id": 42}
+
+    async def fake_add_inventory(payload):
+        inventory_calls.append(dict(payload))
+        return {"success": True}
+
+    coordinator.async_save_product = fake_save_product
+    coordinator.async_add_inventory = fake_add_inventory
+    result = asyncio.run(
+        coordinator.async_add_scanned_item(
+            {
+                "barcode": "0123456789012",
+                "name": "Stale scanner result",
+            }
+        )
+    )
+
+    assert result["success"] is False
+    assert result["stage"] == "product_prepare"
+    assert result["error"] == "prepared_product_required"
+    assert save_calls == []
+    assert inventory_calls == []
+
+
 def test_post_json_retries_explicit_database_busy(monkeypatch) -> None:
     hass = FakeHass()
     coordinator = integration.EverShelfCoordinator(
@@ -1756,6 +1851,283 @@ def test_scanned_item_schema_validates_idempotency_key() -> None:
                 "name": "Mayonnaise",
             }
         )
+
+
+def test_prepare_scanned_product_schema_is_strict_and_bounded() -> None:
+    payload = integration._PREPARE_SCANNED_PRODUCT_SCHEMA(
+        {
+            "product_id": 42,
+            "id": 42,
+            "name": "  Tomato soup  ",
+            "barcode": " 0123456789012 ",
+            "brand": " Kitchen ",
+            "category": " Prepared food ",
+            "image_url": " https://example.test/soup.jpg ",
+            "unit": " pz ",
+            "default_quantity": 1,
+            "notes": " Refrigerate ",
+            "package_unit": " jar ",
+            "shopping_name": " Soup ",
+            "nutriments": {
+                "energy-kcal_100g": 52.5,
+                "nutrition-score-fr_100g": "b",
+            },
+            "prepared_food": True,
+            "config_entry_id": " entry-1 ",
+        }
+    )
+
+    assert payload == {
+        "product_id": 42,
+        "id": 42,
+        "name": "Tomato soup",
+        "barcode": "0123456789012",
+        "brand": "Kitchen",
+        "category": "Prepared food",
+        "image_url": "https://example.test/soup.jpg",
+        "unit": "pz",
+        "default_quantity": 1.0,
+        "notes": "Refrigerate",
+        "package_unit": "jar",
+        "shopping_name": "Soup",
+        "nutriments": {
+            "energy-kcal_100g": 52.5,
+            "nutrition-score-fr_100g": "b",
+        },
+        "prepared_food": True,
+        "config_entry_id": "entry-1",
+    }
+
+    with pytest.raises(vol.Invalid):
+        integration._PREPARE_SCANNED_PRODUCT_SCHEMA(
+            {"name": "Soup", "unexpected": True}
+        )
+    with pytest.raises(vol.Invalid):
+        integration._PREPARE_SCANNED_PRODUCT_SCHEMA(
+            {"name": "x" * 201}
+        )
+    with pytest.raises(vol.Invalid):
+        integration._PREPARE_SCANNED_PRODUCT_SCHEMA(
+            {"name": "Soup", "default_quantity": "1"}
+        )
+    with pytest.raises(vol.Invalid):
+        integration._PREPARE_SCANNED_PRODUCT_SCHEMA(
+            {"name": "Soup", "nutriments": {"nested": {"value": 1}}}
+        )
+
+    add_payload = integration._ADD_SCANNED_ITEM_SCHEMA(
+        {"name": "Soup"}
+    )
+    assert "prepared_food" not in add_payload
+
+
+def test_suggest_location_schema_accepts_committed_identity() -> None:
+    fingerprint = "a" * 64
+    payload = integration._SUGGEST_LOCATION_SCHEMA(
+        {
+            "mode": "barcode",
+            "name": "  Milk ",
+            "barcode": " 0123456789012 ",
+            "category": " Dairy ",
+            "product_id": 42,
+            "product_fingerprint": f" {fingerprint} ",
+        }
+    )
+
+    assert payload == {
+        "mode": "barcode",
+        "name": "Milk",
+        "barcode": "0123456789012",
+        "category": "Dairy",
+        "product_id": 42,
+        "product_fingerprint": fingerprint,
+    }
+    with pytest.raises(vol.Invalid):
+        integration._SUGGEST_LOCATION_SCHEMA(
+            {
+                "name": "Milk",
+                "product_id": 42,
+                "product_fingerprint": "short",
+            }
+        )
+
+
+def test_prepare_coordinator_uses_product_save_without_inventory() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    calls = []
+
+    async def fake_save_product(payload):
+        calls.append(dict(payload))
+        return {
+            "success": True,
+            "id": 42,
+            "product_fingerprint": "b" * 64,
+        }
+
+    coordinator.async_save_product = fake_save_product
+    result = asyncio.run(
+        coordinator.async_prepare_scanned_product(
+            {"id": 42, "name": "Milk"}
+        )
+    )
+
+    assert result == {
+        "success": True,
+        "id": 42,
+        "product_fingerprint": "b" * 64,
+    }
+    assert calls == [{"id": 42, "name": "Milk"}]
+
+
+def test_suggest_location_coordinator_forwards_committed_identity() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    calls = []
+
+    class FakeResponse:
+        status = 200
+
+        async def json(self, **_kwargs):
+            return {
+                "success": True,
+                "location": "frigo",
+                "source": "history_barcode",
+            }
+
+    class FakeResponseContext:
+        async def __aenter__(self):
+            return FakeResponse()
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class FakeSession:
+        def post(self, _url, **kwargs):
+            calls.append(kwargs)
+            return FakeResponseContext()
+
+    coordinator._session = lambda: FakeSession()
+    result = asyncio.run(
+        coordinator.async_suggest_location(
+            mode="barcode",
+            name="Milk",
+            barcode="0123456789012",
+            category="Dairy",
+            product_id=42,
+            product_fingerprint="c" * 64,
+        )
+    )
+
+    assert result["success"] is True
+    assert calls[0]["json"] == {
+        "mode": "barcode",
+        "name": "Milk",
+        "barcode": "0123456789012",
+        "category": "Dairy",
+        "product_id": 42,
+        "product_fingerprint": "c" * 64,
+    }
+
+
+def test_prepare_and_suggest_services_forward_committed_product() -> None:
+    hass = FakeHass()
+    entry = FakeEntry()
+    original_coordinator = integration.EverShelfCoordinator
+    integration.EverShelfCoordinator = FakeCoordinator
+    try:
+        assert asyncio.run(integration.async_setup_entry(hass, entry)) is True
+        coordinator = hass.data[integration.DOMAIN][entry.entry_id]
+        prepare = hass.services.registered[
+            (integration.DOMAIN, "prepare_scanned_product")
+        ]
+        suggestion = hass.services.registered[
+            (integration.DOMAIN, "suggest_location")
+        ]
+
+        assert prepare.supports_response is integration.SupportsResponse.ONLY
+        prepare_result = asyncio.run(
+            hass.services.async_call(
+                integration.DOMAIN,
+                "prepare_scanned_product",
+                {
+                    "product_id": 42,
+                    "name": "  Milk ",
+                    "barcode": "0123456789012",
+                    "brand": "Dairy Co",
+                    "nutriments": {"proteins_100g": 3.4},
+                },
+            )
+        )
+        assert prepare_result == coordinator.prepare_response
+        assert coordinator.prepare_requests == [
+            {
+                "id": 42,
+                "name": "Milk",
+                "barcode": "0123456789012",
+                "brand": "Dairy Co",
+                "nutriments": {"proteins_100g": 3.4},
+            }
+        ]
+
+        suggestion_result = asyncio.run(
+            hass.services.async_call(
+                integration.DOMAIN,
+                "suggest_location",
+                {
+                    "mode": "barcode",
+                    "name": "Milk",
+                    "barcode": "0123456789012",
+                    "category": "Dairy",
+                    "product_id": 42,
+                    "product_fingerprint": "f" * 64,
+                },
+            )
+        )
+        assert suggestion_result == coordinator.suggestion_response
+        assert coordinator.suggestion_requests == [
+            {
+                "mode": "barcode",
+                "name": "Milk",
+                "barcode": "0123456789012",
+                "category": "Dairy",
+                "product_id": 42,
+                "product_fingerprint": "f" * 64,
+            }
+        ]
+
+        coordinator.prepare_response = {
+            "success": False,
+            "error_kind": "conflict",
+            "error": "stale_product",
+            "message": "Product changed.",
+            "details": {"revision": 9},
+        }
+        assert asyncio.run(
+            hass.services.async_call(
+                integration.DOMAIN,
+                "prepare_scanned_product",
+                {"id": 42, "name": "Milk"},
+            )
+        ) == coordinator.prepare_response
+
+        assert asyncio.run(integration.async_unload_entry(hass, entry)) is True
+        assert (
+            integration.DOMAIN,
+            "prepare_scanned_product",
+        ) not in hass.services.registered
+    finally:
+        integration.EverShelfCoordinator = original_coordinator
 
 
 def test_coordinator_loads_recipe_capabilities_independently() -> None:

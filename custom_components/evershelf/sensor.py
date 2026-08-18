@@ -212,6 +212,11 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
             "processing_ontology_jobs",
             "processing_ontology_deferred",
             "processing_missing_recipe_observations",
+            "processing_score_products",
+            "identity_inventory_products",
+            "identity_accepted_products",
+            "identity_unresolved_products",
+            "identity_rejected_products",
         ),
     ),
     EverShelfSensorDescription(
@@ -222,6 +227,7 @@ SENSOR_DESCRIPTIONS: tuple[EverShelfSensorDescription, ...] = (
         requires_processing_status=True,
         extra_attr_keys=(
             "recipe_score_status",
+            "recipe_score_overlay_revision",
             "recipe_score_inventory_revision",
             "recipe_score_built_inventory_revision",
             "recipe_score_catalog_revision",

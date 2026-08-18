@@ -42,6 +42,7 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
                 },
                 "recipe_scores": {
                     "active_revision_id": 57,
+                    "overlay_revision_id": 58,
                     "status": "stale",
                     "stale": True,
                     "current": {
@@ -54,6 +55,15 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
                         "catalog_revision": 96,
                         "ontology_source_revision": 5884,
                     },
+                },
+                "incremental_scores": {
+                    "pending_product_count": 4,
+                },
+                "identity_admission": {
+                    "inventory_product_count": 18,
+                    "accepted_count": 12,
+                    "unresolved_count": 5,
+                    "rejected_count": 1,
                 },
                 "ontology_queue": {
                     "provider": {
@@ -77,9 +87,15 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
     assert data["processing_pending"] == 12
     assert data["processing_ontology_jobs"] == 5
     assert data["processing_ontology_deferred"] == 30906
+    assert data["processing_score_products"] == 4
     assert data["recipe_scores_stale"] is True
     assert data["recipe_score_inventory_revision"] == 56
     assert data["recipe_score_built_inventory_revision"] == 43
+    assert data["recipe_score_overlay_revision"] == 58
+    assert data["identity_inventory_products"] == 18
+    assert data["identity_accepted_products"] == 12
+    assert data["identity_unresolved_products"] == 5
+    assert data["identity_rejected_products"] == 1
     assert data["ontology_provider_healthy"] is True
     assert data["recipe_source_ontology_coverage"] == 37.8
     assert data["recipe_source_ontology_missing"] == 2788

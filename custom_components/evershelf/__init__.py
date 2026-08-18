@@ -73,6 +73,18 @@ _MAX_RECIPE_MIRROR_REQUESTS = 256
 _MAX_RECIPE_MIRROR_NAMES = RECIPE_GROCERY_MAX_SELECTIONS
 _MAX_RECIPE_MIRROR_NAME_LENGTH = 200
 _MAX_CONFIG_ENTRY_ID_LENGTH = 128
+_MAX_PRODUCT_NAME_LENGTH = 200
+_MAX_PRODUCT_BARCODE_LENGTH = 128
+_MAX_PRODUCT_BRAND_LENGTH = 200
+_MAX_PRODUCT_CATEGORY_LENGTH = 512
+_MAX_PRODUCT_IMAGE_URL_LENGTH = 2048
+_MAX_PRODUCT_UNIT_LENGTH = 64
+_MAX_PRODUCT_NOTES_LENGTH = 2000
+_MAX_PRODUCT_SHOPPING_NAME_LENGTH = 200
+_MAX_NUTRIMENTS = 256
+_MAX_NUTRIMENT_KEY_LENGTH = 128
+_MAX_NUTRIMENT_TEXT_LENGTH = 256
+_PRODUCT_FINGERPRINT_LENGTH = 64
 _RECIPE_MIRROR_TTL_SECONDS = 30 * 24 * 60 * 60
 _RECIPE_MIRROR_LOAD_COOLDOWN_SECONDS = 30
 _RECIPE_MIRROR_STORAGE_VERSION = 1
@@ -320,6 +332,54 @@ def _strict_int(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise vol.Invalid("value must be an integer")
     return value
+
+
+def _strict_finite_number(value: object) -> float:
+    """Validate a finite number without accepting booleans or numeric strings."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise vol.Invalid("value must be a number")
+    number = float(value)
+    if not math.isfinite(number):
+        raise vol.Invalid("value must be finite")
+    return number
+
+
+def _bounded_string(maximum: int, *, required: bool = False) -> vol.All:
+    """Return a trimmed bounded string validator."""
+    minimum = 1 if required else 0
+    return vol.All(
+        cv.string,
+        str.strip,
+        vol.Length(min=minimum, max=maximum),
+    )
+
+
+def _bounded_nutriments(value: object) -> dict[str, object]:
+    """Validate a bounded flat JSON-compatible nutriment projection."""
+    if not isinstance(value, Mapping):
+        raise vol.Invalid("nutriments must be an object")
+    if len(value) > _MAX_NUTRIMENTS:
+        raise vol.Invalid("too many nutriment fields")
+
+    nutriments: dict[str, object] = {}
+    for raw_key, raw_value in value.items():
+        if not isinstance(raw_key, str):
+            raise vol.Invalid("nutriment keys must be strings")
+        key = raw_key.strip()
+        if not key or len(key) > _MAX_NUTRIMENT_KEY_LENGTH:
+            raise vol.Invalid("nutriment key is invalid")
+        if isinstance(raw_value, str):
+            if len(raw_value) > _MAX_NUTRIMENT_TEXT_LENGTH:
+                raise vol.Invalid("nutriment text is too long")
+        elif isinstance(raw_value, bool) or raw_value is None:
+            pass
+        elif isinstance(raw_value, (int, float)):
+            if not math.isfinite(float(raw_value)):
+                raise vol.Invalid("nutriment value must be finite")
+        else:
+            raise vol.Invalid("nutriment values must be scalar")
+        nutriments[key] = raw_value
+    return nutriments
 
 
 def _todo_entity_id(value: object) -> str:
@@ -576,12 +636,60 @@ _RESOLVE_BARCODE_SCHEMA = vol.Schema(
 
 _SUGGEST_LOCATION_SCHEMA = vol.Schema(
     {
-        vol.Required("name"): cv.string,
+        vol.Required("name"): _bounded_string(
+            _MAX_PRODUCT_NAME_LENGTH,
+            required=True,
+        ),
         vol.Optional("mode", default="manual"): vol.In(_LOCATION_SUGGESTION_MODES),
-        vol.Optional("barcode"): cv.string,
-        vol.Optional("category"): cv.string,
-        vol.Optional("config_entry_id"): cv.string,
-    }
+        vol.Optional("barcode"): _bounded_string(_MAX_PRODUCT_BARCODE_LENGTH),
+        vol.Optional("category"): _bounded_string(_MAX_PRODUCT_CATEGORY_LENGTH),
+        vol.Optional("product_id"): vol.All(_strict_int, vol.Range(min=1)),
+        vol.Optional("product_fingerprint"): vol.All(
+            cv.string,
+            str.strip,
+            vol.Length(
+                min=_PRODUCT_FINGERPRINT_LENGTH,
+                max=_PRODUCT_FINGERPRINT_LENGTH,
+            ),
+        ),
+        vol.Optional("config_entry_id"): _bounded_string(
+            _MAX_CONFIG_ENTRY_ID_LENGTH,
+            required=True,
+        ),
+    },
+    extra=vol.PREVENT_EXTRA,
+)
+
+_PREPARE_SCANNED_PRODUCT_SCHEMA = vol.Schema(
+    {
+        vol.Optional("product_id"): vol.All(_strict_int, vol.Range(min=1)),
+        vol.Optional("id"): vol.All(_strict_int, vol.Range(min=1)),
+        vol.Required("name"): _bounded_string(
+            _MAX_PRODUCT_NAME_LENGTH,
+            required=True,
+        ),
+        vol.Optional("barcode"): _bounded_string(_MAX_PRODUCT_BARCODE_LENGTH),
+        vol.Optional("brand"): _bounded_string(_MAX_PRODUCT_BRAND_LENGTH),
+        vol.Optional("category"): _bounded_string(_MAX_PRODUCT_CATEGORY_LENGTH),
+        vol.Optional("image_url"): _bounded_string(_MAX_PRODUCT_IMAGE_URL_LENGTH),
+        vol.Optional("unit"): _bounded_string(_MAX_PRODUCT_UNIT_LENGTH),
+        vol.Optional("default_quantity"): vol.All(
+            _strict_finite_number,
+            vol.Range(min=0, max=100000),
+        ),
+        vol.Optional("notes"): _bounded_string(_MAX_PRODUCT_NOTES_LENGTH),
+        vol.Optional("package_unit"): _bounded_string(_MAX_PRODUCT_UNIT_LENGTH),
+        vol.Optional("shopping_name"): _bounded_string(
+            _MAX_PRODUCT_SHOPPING_NAME_LENGTH,
+        ),
+        vol.Optional("nutriments"): _bounded_nutriments,
+        vol.Optional("prepared_food"): cv.boolean,
+        vol.Optional("config_entry_id"): _bounded_string(
+            _MAX_CONFIG_ENTRY_ID_LENGTH,
+            required=True,
+        ),
+    },
+    extra=vol.PREVENT_EXTRA,
 )
 
 _READ_EXPIRY_IMAGE_SCHEMA = vol.Schema(
@@ -624,7 +732,7 @@ _ADD_SCANNED_ITEM_SCHEMA = vol.Schema(
         vol.Optional("expiry_date"): cv.string,
         vol.Optional("vacuum_sealed", default=False): cv.boolean,
         vol.Optional("expiry_user_set"): cv.boolean,
-        vol.Optional("prepared_food", default=False): cv.boolean,
+        vol.Optional("prepared_food"): cv.boolean,
         vol.Optional("config_entry_id"): cv.string,
     }
 )
@@ -899,7 +1007,41 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 name=name,
                 barcode=barcode,
                 category=call.data.get("category", "").strip(),
+                product_id=call.data.get("product_id"),
+                product_fingerprint=call.data.get(
+                    "product_fingerprint",
+                    "",
+                ).strip(),
             )
+
+        async def _handle_prepare_scanned_product(
+            call: ServiceCall,
+        ) -> dict[str, object]:
+            coord = _get_coordinator(hass, call)
+            product = dict(call.data)
+            product.pop("config_entry_id", None)
+            product_id = product.pop("product_id", None)
+            existing_id = product.get("id")
+            if (
+                product_id is not None
+                and existing_id is not None
+                and product_id != existing_id
+            ):
+                raise ServiceValidationError(
+                    "EverShelf: product_id and id must identify the same product"
+                )
+            if product_id is not None:
+                product["id"] = product_id
+
+            result = await coord.async_prepare_scanned_product(product)
+            if result is None:
+                return {
+                    "success": False,
+                    "error_kind": "unavailable",
+                    "error": "product_save_failed",
+                    "message": "Could not save the scanned product.",
+                }
+            return dict(result)
 
         async def _handle_read_expiry_image(call: ServiceCall) -> dict:
             coord = _get_coordinator(hass, call)
@@ -1042,6 +1184,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         hass.services.async_register(
             DOMAIN,
+            "prepare_scanned_product",
+            _handle_prepare_scanned_product,
+            schema=_PREPARE_SCANNED_PRODUCT_SCHEMA,
+            supports_response=SupportsResponse.ONLY,
+        )
+        hass.services.async_register(
+            DOMAIN,
             "read_expiry_image",
             _handle_read_expiry_image,
             schema=_READ_EXPIRY_IMAGE_SCHEMA,
@@ -1087,6 +1236,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             "set_inventory_prepared_food",
             "resolve_barcode",
             "suggest_location",
+            "prepare_scanned_product",
             "read_expiry_image",
             "add_scanned_item",
         ):

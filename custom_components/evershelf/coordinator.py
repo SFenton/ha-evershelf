@@ -810,6 +810,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         name: str,
         barcode: str = "",
         category: str = "",
+        product_id: int | None = None,
+        product_fingerprint: str = "",
     ) -> dict[str, Any]:
         """Return EverShelf's history-first storage-location suggestion."""
         payload: dict[str, Any] = {"mode": mode, "name": name}
@@ -817,6 +819,10 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             payload["barcode"] = barcode
         if category:
             payload["category"] = category
+        if product_id is not None:
+            payload["product_id"] = int(product_id)
+        if product_fingerprint:
+            payload["product_fingerprint"] = product_fingerprint
 
         try:
             async with self._session().post(
@@ -868,6 +874,13 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             busy_retries=3,
         )
 
+    async def async_prepare_scanned_product(
+        self,
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Create or update a scanned product without adding inventory."""
+        return await self.async_save_product(payload)
+
     async def async_add_inventory(self, payload: dict[str, Any]) -> dict[str, Any] | None:
         """Add quantity to an EverShelf inventory expiry batch and return the API response."""
         return await self._post_json(
@@ -901,12 +914,24 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Save a scanned product when needed, then add it to a matching inventory batch."""
         product_id = item.get("product_id")
         product_response: dict[str, Any] | None = None
+        prepared_food_supplied = "prepared_food" in item
         prepared_food = bool(item.get("prepared_food"))
         idempotency_key = str(item.get("idempotency_key") or "").strip()
         if not idempotency_key:
             idempotency_key = uuid.uuid4().hex
 
         if product_id is None:
+            barcode = str(item.get("barcode") or "").strip()
+            if barcode:
+                return {
+                    "success": False,
+                    "stage": "product_prepare",
+                    "error": "prepared_product_required",
+                    "message": (
+                        "Commit the barcode product before adding inventory."
+                    ),
+                    "idempotency_key": idempotency_key,
+                }
             product_payload: dict[str, Any] = {}
             for key in (
                 "name",
@@ -928,8 +953,8 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 value = item.get(key)
                 if value is not None:
                     product_payload[key] = value
-            if prepared_food:
-                product_payload["prepared_food"] = True
+            if prepared_food_supplied:
+                product_payload["prepared_food"] = prepared_food
             if isinstance(item.get("nutriments"), dict):
                 product_payload["nutriments"] = item["nutriments"]
 
@@ -952,12 +977,12 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     "product": product_response,
                 }
             product_id = product_response["id"]
-        elif prepared_food:
-            # Existing product: product_save rewrites every column from its input, so the
-            # flag is set through the dedicated endpoint instead of a partial save.
+        elif prepared_food_supplied:
+            # Existing product: use the dedicated endpoint so explicit false
+            # clears the flag without a sparse product rewrite.
             prepared_response = await self.async_set_prepared_food(
                 int(product_id),
-                True,
+                prepared_food,
             )
             if (
                 prepared_response is None

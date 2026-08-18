@@ -56,12 +56,14 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_ontology_jobs": 0,
         "processing_ontology_deferred": 0,
         "processing_missing_recipe_observations": 0,
+        "processing_score_products": 0,
         "processing_oldest_age_seconds": 0,
         "processing_oldest_job_at": None,
         "processing_observed_at": None,
         "processing_last_error": None,
         "processing_logging_healthy": False,
         "recipe_score_revision": 0,
+        "recipe_score_overlay_revision": 0,
         "recipe_score_status": "unavailable",
         "recipe_scores_stale": False,
         "recipe_score_inventory_revision": 0,
@@ -70,6 +72,10 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "recipe_score_built_catalog_revision": 0,
         "recipe_score_source_revision": 0,
         "recipe_score_built_source_revision": 0,
+        "identity_inventory_products": 0,
+        "identity_accepted_products": 0,
+        "identity_unresolved_products": 0,
+        "identity_rejected_products": 0,
         "ontology_provider": None,
         "ontology_provider_required": False,
         "ontology_provider_healthy": False,
@@ -91,6 +97,8 @@ def processing_status_data(payload: object) -> dict[str, Any]:
     provider = _mapping(ontology_queue.get("provider"))
     provider_required = bool(ontology_queue.get("runtime_enabled"))
     coverage = _mapping(status.get("recipe_source_ontology"))
+    incremental = _mapping(status.get("incremental_scores"))
+    identity = _mapping(status.get("identity_admission"))
     logging_status = _mapping(status.get("logging"))
     phase = status.get("phase")
     if not isinstance(phase, str) or phase not in _PHASES:
@@ -115,6 +123,9 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_missing_recipe_observations": _bounded_int(
             pending.get("recipes_missing_observation")
         ),
+        "processing_score_products": _bounded_int(
+            incremental.get("pending_product_count")
+        ),
         "processing_oldest_age_seconds": _bounded_int(
             status.get("oldest_age_seconds")
         ),
@@ -136,6 +147,9 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         ),
         "recipe_score_revision": _bounded_int(
             scores.get("active_revision_id")
+        ),
+        "recipe_score_overlay_revision": _bounded_int(
+            scores.get("overlay_revision_id")
         ),
         "recipe_score_status": _bounded_text(
             scores.get("status"),
@@ -160,6 +174,18 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         ),
         "recipe_score_built_source_revision": _bounded_int(
             built.get("ontology_source_revision")
+        ),
+        "identity_inventory_products": _bounded_int(
+            identity.get("inventory_product_count")
+        ),
+        "identity_accepted_products": _bounded_int(
+            identity.get("accepted_count")
+        ),
+        "identity_unresolved_products": _bounded_int(
+            identity.get("unresolved_count")
+        ),
+        "identity_rejected_products": _bounded_int(
+            identity.get("rejected_count")
         ),
         "ontology_provider": _bounded_text(
             provider.get("provider"),

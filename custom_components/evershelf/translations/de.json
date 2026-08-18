@@ -389,10 +389,39 @@
           "name": "Kategorie",
           "description": "Optionale Produktkategorie aus der Barcode-Suche."
         },
+        "product_id": {
+          "name": "Produkt-ID",
+          "description": "Aktuelle bestätigte EverShelf-Produkt-ID aus prepare_scanned_product."
+        },
+        "product_fingerprint": {
+          "name": "Produkt-Fingerabdruck",
+          "description": "Aktueller serverseitig erzeugter Produkt-Fingerabdruck aus prepare_scanned_product."
+        },
         "config_entry_id": {
           "name": "Konfigurationseintrag",
           "description": "Optionale EverShelf-Konfigurationseintrags-ID bei mehreren Instanzen."
         }
+      }
+    },
+    "prepare_scanned_product": {
+      "name": "Gescanntes Produkt vorbereiten",
+      "description": "Das aktuelle gescannte Produkt ohne Bestandserhöhung erstellen oder aktualisieren und seine bestätigte ID samt serverseitigem Fingerabdruck zurückgeben.",
+      "fields": {
+        "product_id": {"name": "Produkt-ID", "description": "Vorhandene oder zuvor vorbereitete EverShelf-Produkt-ID."},
+        "id": {"name": "Produkt-ID-Alias", "description": "Backend-kompatibler Alias für product_id; beide Werte müssen übereinstimmen."},
+        "name": {"name": "Produktname", "description": "Aktueller zu speichernder Produktname."},
+        "barcode": {"name": "Barcode", "description": "Gescannter Produkt-Barcode."},
+        "brand": {"name": "Marke", "description": "Produktmarke."},
+        "category": {"name": "Kategorie", "description": "Produktkategorie."},
+        "image_url": {"name": "Bild-URL", "description": "Produktbild-URL aus der Barcode-Suche."},
+        "unit": {"name": "Einheit", "description": "Produkteinheit wie pz, kg oder l."},
+        "default_quantity": {"name": "Standardmenge", "description": "Standard-Packungsmenge des Produkts."},
+        "notes": {"name": "Notizen", "description": "Optionale begrenzte Produktnotizen."},
+        "package_unit": {"name": "Packungseinheit", "description": "Einheit für konfigurierbare Packungen."},
+        "shopping_name": {"name": "Einkaufsname", "description": "Optionaler Produktname für die Einkaufsliste."},
+        "nutriments": {"name": "Nährwerte", "description": "Optionales begrenztes flaches Nährwertobjekt."},
+        "prepared_food": {"name": "Zubereitetes Essen", "description": "Ob das Produkt zubereitetes Essen ist."},
+        "config_entry_id": {"name": "Konfigurationseintrag", "description": "Optionale EverShelf-Konfigurationseintrags-ID bei mehreren Instanzen."}
       }
     }
   }

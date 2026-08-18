@@ -389,10 +389,39 @@
           "name": "Categoría",
           "description": "Categoría opcional obtenida de la búsqueda del código."
         },
+        "product_id": {
+          "name": "ID de producto",
+          "description": "ID actual del producto confirmado devuelto por prepare_scanned_product."
+        },
+        "product_fingerprint": {
+          "name": "Huella del producto",
+          "description": "Huella actual del producto derivada por el servidor y devuelta por prepare_scanned_product."
+        },
         "config_entry_id": {
           "name": "Entrada de configuración",
           "description": "ID opcional de la entrada de EverShelf cuando hay varias instancias."
         }
+      }
+    },
+    "prepare_scanned_product": {
+      "name": "Preparar producto escaneado",
+      "description": "Crea o actualiza el producto escaneado sin añadir inventario y devuelve su ID confirmado y la huella derivada por el servidor.",
+      "fields": {
+        "product_id": {"name": "ID de producto", "description": "ID existente o preparado anteriormente que se actualizará."},
+        "id": {"name": "Alias del ID de producto", "description": "Alias compatible con el backend para product_id; ambos valores deben coincidir."},
+        "name": {"name": "Nombre del producto", "description": "Nombre actual del producto que se confirmará."},
+        "barcode": {"name": "Código de barras", "description": "Código de barras escaneado."},
+        "brand": {"name": "Marca", "description": "Marca del producto."},
+        "category": {"name": "Categoría", "description": "Categoría del producto."},
+        "image_url": {"name": "URL de imagen", "description": "URL de la imagen obtenida por la búsqueda del código."},
+        "unit": {"name": "Unidad", "description": "Unidad del producto, como pz, kg o l."},
+        "default_quantity": {"name": "Cantidad predeterminada", "description": "Cantidad predeterminada del envase."},
+        "notes": {"name": "Notas", "description": "Notas opcionales y limitadas del producto."},
+        "package_unit": {"name": "Unidad del envase", "description": "Unidad para envases configurables."},
+        "shopping_name": {"name": "Nombre de compra", "description": "Nombre opcional usado en la lista de compras."},
+        "nutriments": {"name": "Nutrientes", "description": "Objeto plano y limitado de nutrientes."},
+        "prepared_food": {"name": "Comida preparada", "description": "Indica si el producto es comida preparada."},
+        "config_entry_id": {"name": "Entrada de configuración", "description": "ID opcional de la entrada de EverShelf cuando hay varias instancias."}
       }
     }
   }

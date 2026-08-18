@@ -389,10 +389,39 @@
           "name": "Category",
           "description": "Optional product category from barcode lookup."
         },
+        "product_id": {
+          "name": "Product ID",
+          "description": "Current committed EverShelf product ID returned by prepare_scanned_product."
+        },
+        "product_fingerprint": {
+          "name": "Product fingerprint",
+          "description": "Current server-derived product fingerprint returned by prepare_scanned_product."
+        },
         "config_entry_id": {
           "name": "Config entry",
           "description": "Optional EverShelf config entry ID when multiple EverShelf instances are configured."
         }
+      }
+    },
+    "prepare_scanned_product": {
+      "name": "Prepare Scanned Product",
+      "description": "Create or update the current scanned product without adding inventory, returning its committed ID and server-derived fingerprint.",
+      "fields": {
+        "product_id": {"name": "Product ID", "description": "Existing or previously prepared EverShelf product ID to update."},
+        "id": {"name": "Product ID alias", "description": "Backend-compatible alias for product_id; both values must match when supplied together."},
+        "name": {"name": "Product name", "description": "Current product name to commit."},
+        "barcode": {"name": "Barcode", "description": "Scanned product barcode."},
+        "brand": {"name": "Brand", "description": "Product brand."},
+        "category": {"name": "Category", "description": "Product category."},
+        "image_url": {"name": "Image URL", "description": "Product image URL from barcode lookup."},
+        "unit": {"name": "Unit", "description": "Product unit such as pz, kg, or l."},
+        "default_quantity": {"name": "Default quantity", "description": "Default package quantity for the product."},
+        "notes": {"name": "Notes", "description": "Optional bounded product notes."},
+        "package_unit": {"name": "Package unit", "description": "Package unit for configurable packages."},
+        "shopping_name": {"name": "Shopping name", "description": "Optional product name used by the shopping list."},
+        "nutriments": {"name": "Nutriments", "description": "Optional bounded flat nutriment object from product lookup."},
+        "prepared_food": {"name": "Prepared food", "description": "Whether this product is prepared food."},
+        "config_entry_id": {"name": "Config entry", "description": "Optional EverShelf config entry ID when multiple EverShelf instances are configured."}
       }
     },
     "read_expiry_image": {

@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.0] - 2026-08-17
+
+### Added
+- `prepare_scanned_product` commits or updates a scanned product without adding
+  inventory and returns EverShelf's server-derived product fingerprint.
+- Processing entities expose pending score-product counts, active incremental
+  overlays, and accepted, unresolved, and rejected inventory identity counts.
+
+### Changed
+- `suggest_location` accepts the committed product ID and fingerprint required
+  by EverShelf's stale-safe AI gate.
+
+### Fixed
+- Scanner clients can prepare a product on the first Next transition, request
+  one committed location suggestion, and reuse the same product ID for the
+  final idempotent inventory add.
+- Barcode inventory adds now require a committed product ID instead of falling
+  through to an ID-less save that could overwrite a new barcode owner.
+- Explicit `prepared_food: false` requests clear existing prepared-food state
+  through the dedicated product endpoint before inventory is added.
+
 ## [1.4.0] - 2026-08-16
 
 ### Added
