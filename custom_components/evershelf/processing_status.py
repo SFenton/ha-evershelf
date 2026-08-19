@@ -58,6 +58,12 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_recipe_jobs": 0,
         "processing_ontology_jobs": 0,
         "processing_ontology_deferred": 0,
+        "processing_ontology_generation_intents": 0,
+        "processing_ontology_intents_pending": 0,
+        "processing_ontology_policy_deferred": 0,
+        "processing_ontology_intent_oldest_age_seconds": 0,
+        "processing_identity_coverage_gaps": 0,
+        "processing_coverage_gap_oldest_age_seconds": 0,
         "processing_missing_recipe_observations": 0,
         "processing_score_products": 0,
         "processing_score_recipes": 0,
@@ -70,6 +76,8 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_observed_at": None,
         "processing_last_error": None,
         "processing_logging_healthy": False,
+        "processing_activation_outcome": None,
+        "processing_activation_outcome_at": None,
         "recipe_score_revision": 0,
         "recipe_score_overlay_revision": 0,
         "recipe_score_status": "unavailable",
@@ -103,6 +111,7 @@ def processing_status_data(payload: object) -> dict[str, Any]:
     built = _mapping(scores.get("built"))
     ontology_queue = _mapping(status.get("ontology_queue"))
     provider = _mapping(ontology_queue.get("provider"))
+    activation = _mapping(status.get("activation"))
     provider_required = bool(ontology_queue.get("runtime_enabled"))
     coverage = _mapping(status.get("recipe_source_ontology"))
     incremental = _mapping(status.get("incremental_scores"))
@@ -127,6 +136,24 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         + _bounded_int(pending.get("ontology_generation_jobs")),
         "processing_ontology_deferred": _bounded_int(
             pending.get("ontology_deferred_jobs")
+        ),
+        "processing_ontology_generation_intents": _bounded_int(
+            pending.get("ontology_generation_intents")
+        ),
+        "processing_ontology_intents_pending": _bounded_int(
+            ontology_queue.get("generation_intent_pending_count")
+        ),
+        "processing_ontology_policy_deferred": _bounded_int(
+            pending.get("ontology_policy_deferred_intents")
+        ),
+        "processing_ontology_intent_oldest_age_seconds": _bounded_int(
+            ontology_queue.get("generation_intent_oldest_age_seconds")
+        ),
+        "processing_identity_coverage_gaps": _bounded_int(
+            pending.get("identity_coverage_gaps")
+        ),
+        "processing_coverage_gap_oldest_age_seconds": _bounded_int(
+            ontology_queue.get("coverage_gap_oldest_age_seconds")
         ),
         "processing_missing_recipe_observations": _bounded_int(
             pending.get("recipes_missing_observation")
@@ -169,6 +196,14 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         ),
         "processing_logging_healthy": bool(
             logging_status.get("healthy")
+        ),
+        "processing_activation_outcome": _bounded_text(
+            activation.get("last_outcome_kind"),
+            80,
+        ),
+        "processing_activation_outcome_at": _bounded_text(
+            activation.get("last_outcome_at"),
+            40,
         ),
         "recipe_score_revision": _bounded_int(
             scores.get("active_revision_id")

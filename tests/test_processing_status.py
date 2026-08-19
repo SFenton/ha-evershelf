@@ -38,6 +38,9 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
                     "ontology_intake_jobs": 3,
                     "ontology_generation_jobs": 2,
                     "ontology_deferred_jobs": 30906,
+                    "ontology_generation_intents": 7,
+                    "ontology_policy_deferred_intents": 11,
+                    "identity_coverage_gaps": 4,
                     "recipes_missing_observation": 2,
                 },
                 "recipe_scores": {
@@ -71,10 +74,17 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
                     "rejected_count": 1,
                 },
                 "ontology_queue": {
+                    "generation_intent_pending_count": 19,
+                    "generation_intent_oldest_age_seconds": 7200,
+                    "coverage_gap_oldest_age_seconds": 1800,
                     "provider": {
                         "provider": "copilot_socket",
                         "healthy": True,
                     }
+                },
+                "activation": {
+                    "last_outcome_kind": "policy_deferred",
+                    "last_outcome_at": "2026-08-16 17:59:00",
                 },
                 "recipe_source_ontology": {
                     "coverage_percent": 37.8,
@@ -92,6 +102,17 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
     assert data["processing_pending"] == 12
     assert data["processing_ontology_jobs"] == 5
     assert data["processing_ontology_deferred"] == 30906
+    assert data["processing_ontology_generation_intents"] == 7
+    assert data["processing_ontology_intents_pending"] == 19
+    assert data["processing_ontology_policy_deferred"] == 11
+    assert data["processing_ontology_intent_oldest_age_seconds"] == 7200
+    assert data["processing_identity_coverage_gaps"] == 4
+    assert data["processing_coverage_gap_oldest_age_seconds"] == 1800
+    assert data["processing_activation_outcome"] == "policy_deferred"
+    assert (
+        data["processing_activation_outcome_at"]
+        == "2026-08-16 17:59:00"
+    )
     assert data["processing_score_products"] == 4
     assert data["processing_score_recipes"] == 2
     assert data["processing_score_phase"] == "scoring"
