@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.0] - 2026-08-19
+
+### Added
+- Processing attributes for due and policy-deferred ontology generation intents,
+  open identity coverage gaps, their oldest ages, and the latest sanitized
+  activation outcome.
+
 ## [1.6.0] - 2026-08-18
 
 ### Added
