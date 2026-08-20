@@ -163,3 +163,82 @@ def test_processing_status_fails_closed_and_bounds_values() -> None:
     assert "SQLSTATE" not in data["processing_last_error"]
     assert "/var/www" not in data["processing_last_error"]
     assert data["recipe_source_ontology_coverage"] == 100.0
+
+
+def test_processing_status_exposes_canonical_queue_without_false_degradation() -> None:
+    data = processing_status_data(
+        {
+            "success": True,
+            "status": {
+                "phase": "canonical",
+                "active": True,
+                "problem": False,
+                "pending": {
+                    "total": 3,
+                    "canonical_queue": 3,
+                    "canonical_due": 1,
+                },
+                "canonical_queue": {
+                    "open_count": 3,
+                    "active_count": 2,
+                    "lock_available": True,
+                    "pending_count": 2,
+                    "in_progress_count": 1,
+                    "retry_count": 2,
+                    "retry_due_count": 1,
+                    "failed_count": 4,
+                    "exhausted_count": 1,
+                    "exhausted_pending_count": 0,
+                    "failed_24h_count": 0,
+                    "overdue_lease_count": 0,
+                    "stale_due_count": 0,
+                    "stale_due_seconds": 300,
+                    "oldest_pending_at": "2026-08-20 12:00:00",
+                    "oldest_pending_age_seconds": 12,
+                    "oldest_retry_at": "2026-08-20 12:00:05",
+                    "oldest_retry_age_seconds": 7,
+                    "oldest_due_at": "2026-08-20 12:00:04",
+                    "oldest_due_age_seconds": 8,
+                    "oldest_in_progress_at": "2026-08-20 12:00:10",
+                    "oldest_in_progress_age_seconds": 2,
+                    "earliest_lease_expires_at": "2026-08-20 12:02:10",
+                    "next_due_at": "2026-08-20 12:00:20",
+                    "last_error_kind": "sqlite_busy",
+                    "last_error": "private database path and SQLSTATE",
+                    "last_error_at": "2026-08-20 12:00:08",
+                },
+                "recipe_scores": {},
+                "ontology_queue": {},
+                "recipe_source_ontology": {},
+            },
+        }
+    )
+
+    assert data["processing_phase"] == "canonical"
+    assert data["processing_problem"] is False
+    assert data["processing_canonical_open"] == 3
+    assert data["processing_canonical_active"] == 2
+    assert data["processing_canonical_lock_available"] is True
+    assert data["processing_canonical_pending"] == 2
+    assert data["processing_canonical_in_progress"] == 1
+    assert data["processing_canonical_retries"] == 2
+    assert data["processing_canonical_due"] == 1
+    assert data["processing_canonical_failed"] == 4
+    assert data["processing_canonical_exhausted"] == 1
+    assert data["processing_canonical_exhausted_pending"] == 0
+    assert data["processing_canonical_failed_24h"] == 0
+    assert data["processing_canonical_overdue_leases"] == 0
+    assert data["processing_canonical_stale_due"] == 0
+    assert data["processing_canonical_stale_due_seconds"] == 300
+    assert data["processing_canonical_oldest_pending_age_seconds"] == 12
+    assert data["processing_canonical_oldest_retry_age_seconds"] == 7
+    assert data["processing_canonical_oldest_due_at"] == "2026-08-20 12:00:04"
+    assert data["processing_canonical_oldest_due_age_seconds"] == 8
+    assert data["processing_canonical_oldest_in_progress_age_seconds"] == 2
+    assert data["processing_canonical_next_due_at"] == "2026-08-20 12:00:20"
+    assert data["processing_canonical_last_error_kind"] == "sqlite_busy"
+    assert (
+        data["processing_canonical_last_error"]
+        == PROCESSING_ERROR_PUBLIC_MESSAGE
+    )
+    assert "SQLSTATE" not in data["processing_canonical_last_error"]

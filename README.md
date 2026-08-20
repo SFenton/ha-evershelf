@@ -40,7 +40,7 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 
 | Requirement | Details |
 |---|---|
-| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; atomic `mark_used` requires `inventory_decrement_v1` (EverShelf v1.10.0+), recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, grocery actions require `recipe_grocery_v1`, atomic ingredient decisions require `recipe_ingredient_feedback_v2`, and the default-off account planner requires `recipe_planner_v1` |
+| **EverShelf** (self-hosted) | v1.7.0+ for existing inventory features; atomic `mark_used` requires `inventory_decrement_v1` (EverShelf v1.10.0+), recipe browse/hydration requires `recipe_catalog_v2`, detail requires `recipe_detail_v1`, grocery actions require `recipe_grocery_v1`, atomic ingredient decisions require `recipe_ingredient_feedback_v2`, canonical lock/due diagnostics require EverShelf v1.14.0+, and the default-off account planner requires `recipe_planner_v1` |
 | **Home Assistant** | 2024.1.0 or newer |
 | **Network** | HA host must be able to reach the EverShelf server (same LAN or routed) |
 | **SETTINGS_TOKEN** | Optional — needed only for write operations (add to shopping, mark used) |
@@ -88,8 +88,8 @@ If your EverShelf server is on the same network and runs `avahi-daemon`, it will
 | `sensor.evershelf_ai_calls_month` | AI Calls This Month | calls | Gemini API calls used in the current billing month |
 | `sensor.evershelf_last_backup` | Last Backup | — | Timestamp of the latest EverShelf backup |
 | `sensor.evershelf_days_to_next_expiry` | Days to Next Expiry | d | Days until the soonest upcoming expiry across all locations |
-| `sensor.evershelf_processing_phase` | Processing Phase | — | Current backend phase: idle, recipes, ontology, scoring, activating, or degraded |
-| `sensor.evershelf_processing_pending` | Pending Processing Work | jobs | Compact queue total with recipe, ontology, deferred, and missing-observation attributes |
+| `sensor.evershelf_processing_phase` | Processing Phase | — | Current backend phase, including canonical enrichment, scoring, activation, idle, or degraded; attributes expose canonical lock health, due/stale timing, leases, and sanitized errors |
+| `sensor.evershelf_processing_pending` | Pending Processing Work | jobs | Compact queue total with canonical, recipe, ontology, deferred, and missing-observation attributes |
 | `sensor.evershelf_recipe_score_revision` | Recipe Score Revision | — | Active score revision with current and built inventory/catalog/source revisions |
 | `sensor.evershelf_recipe_source_ontology_coverage` | Source Ingredient Ontology Coverage | % | Cookidoo/source ingredient rows with active ontology occurrences |
 
