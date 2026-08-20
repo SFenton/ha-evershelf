@@ -7,6 +7,7 @@ from typing import Any
 _PHASES = {
     "idle",
     "recipes",
+    "canonical",
     "ontology",
     "preparing",
     "scoring",
@@ -56,6 +57,33 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_problem": False,
         "processing_pending": 0,
         "processing_recipe_jobs": 0,
+        "processing_canonical_open": 0,
+        "processing_canonical_active": 0,
+        "processing_canonical_lock_available": False,
+        "processing_canonical_pending": 0,
+        "processing_canonical_in_progress": 0,
+        "processing_canonical_retries": 0,
+        "processing_canonical_due": 0,
+        "processing_canonical_failed": 0,
+        "processing_canonical_exhausted": 0,
+        "processing_canonical_exhausted_pending": 0,
+        "processing_canonical_failed_24h": 0,
+        "processing_canonical_overdue_leases": 0,
+        "processing_canonical_stale_due": 0,
+        "processing_canonical_stale_due_seconds": 0,
+        "processing_canonical_oldest_pending_at": None,
+        "processing_canonical_oldest_pending_age_seconds": 0,
+        "processing_canonical_oldest_retry_at": None,
+        "processing_canonical_oldest_retry_age_seconds": 0,
+        "processing_canonical_oldest_due_at": None,
+        "processing_canonical_oldest_due_age_seconds": 0,
+        "processing_canonical_oldest_in_progress_at": None,
+        "processing_canonical_oldest_in_progress_age_seconds": 0,
+        "processing_canonical_earliest_lease_expires_at": None,
+        "processing_canonical_next_due_at": None,
+        "processing_canonical_last_error_kind": None,
+        "processing_canonical_last_error": None,
+        "processing_canonical_last_error_at": None,
         "processing_ontology_jobs": 0,
         "processing_ontology_deferred": 0,
         "processing_ontology_generation_intents": 0,
@@ -106,6 +134,7 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         return unavailable
 
     pending = _mapping(status.get("pending"))
+    canonical_queue = _mapping(status.get("canonical_queue"))
     scores = _mapping(status.get("recipe_scores"))
     current = _mapping(scores.get("current"))
     built = _mapping(scores.get("built"))
@@ -129,6 +158,97 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_pending": _bounded_int(pending.get("total")),
         "processing_recipe_jobs": _bounded_int(
             pending.get("recipe_jobs")
+        ),
+        "processing_canonical_open": _bounded_int(
+            canonical_queue.get("open_count")
+        ),
+        "processing_canonical_active": _bounded_int(
+            canonical_queue.get("active_count")
+        ),
+        "processing_canonical_lock_available": bool(
+            canonical_queue.get("lock_available")
+        ),
+        "processing_canonical_pending": _bounded_int(
+            canonical_queue.get("pending_count")
+        ),
+        "processing_canonical_in_progress": _bounded_int(
+            canonical_queue.get("in_progress_count")
+        ),
+        "processing_canonical_retries": _bounded_int(
+            canonical_queue.get("retry_count")
+        ),
+        "processing_canonical_due": _bounded_int(
+            canonical_queue.get("retry_due_count")
+        ),
+        "processing_canonical_failed": _bounded_int(
+            canonical_queue.get("failed_count")
+        ),
+        "processing_canonical_exhausted": _bounded_int(
+            canonical_queue.get("exhausted_count")
+        ),
+        "processing_canonical_exhausted_pending": _bounded_int(
+            canonical_queue.get("exhausted_pending_count")
+        ),
+        "processing_canonical_failed_24h": _bounded_int(
+            canonical_queue.get("failed_24h_count")
+        ),
+        "processing_canonical_overdue_leases": _bounded_int(
+            canonical_queue.get("overdue_lease_count")
+        ),
+        "processing_canonical_stale_due": _bounded_int(
+            canonical_queue.get("stale_due_count")
+        ),
+        "processing_canonical_stale_due_seconds": _bounded_int(
+            canonical_queue.get("stale_due_seconds")
+        ),
+        "processing_canonical_oldest_pending_at": _bounded_text(
+            canonical_queue.get("oldest_pending_at"),
+            40,
+        ),
+        "processing_canonical_oldest_pending_age_seconds": _bounded_int(
+            canonical_queue.get("oldest_pending_age_seconds")
+        ),
+        "processing_canonical_oldest_retry_at": _bounded_text(
+            canonical_queue.get("oldest_retry_at"),
+            40,
+        ),
+        "processing_canonical_oldest_retry_age_seconds": _bounded_int(
+            canonical_queue.get("oldest_retry_age_seconds")
+        ),
+        "processing_canonical_oldest_due_at": _bounded_text(
+            canonical_queue.get("oldest_due_at"),
+            40,
+        ),
+        "processing_canonical_oldest_due_age_seconds": _bounded_int(
+            canonical_queue.get("oldest_due_age_seconds")
+        ),
+        "processing_canonical_oldest_in_progress_at": _bounded_text(
+            canonical_queue.get("oldest_in_progress_at"),
+            40,
+        ),
+        "processing_canonical_oldest_in_progress_age_seconds": _bounded_int(
+            canonical_queue.get("oldest_in_progress_age_seconds")
+        ),
+        "processing_canonical_earliest_lease_expires_at": _bounded_text(
+            canonical_queue.get("earliest_lease_expires_at"),
+            40,
+        ),
+        "processing_canonical_next_due_at": _bounded_text(
+            canonical_queue.get("next_due_at"),
+            40,
+        ),
+        "processing_canonical_last_error_kind": _bounded_text(
+            canonical_queue.get("last_error_kind"),
+            80,
+        ),
+        "processing_canonical_last_error": (
+            PROCESSING_ERROR_PUBLIC_MESSAGE
+            if _bounded_text(canonical_queue.get("last_error"), 1)
+            else None
+        ),
+        "processing_canonical_last_error_at": _bounded_text(
+            canonical_queue.get("last_error_at"),
+            40,
         ),
         "processing_ontology_jobs": _bounded_int(
             pending.get("ontology_intake_jobs")

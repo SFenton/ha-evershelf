@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.8.0] - 2026-08-20
+
+### Added
+- Canonical enrichment queue counts, lock health, due/stale timing, lease
+  diagnostics, and sanitized failure attributes on the processing entities.
+
+### Fixed
+- Canonical enrichment is recognized as an active processing phase instead of
+  being mislabeled as degraded while healthy work is running.
+
 ## [1.7.0] - 2026-08-19
 
 ### Added
