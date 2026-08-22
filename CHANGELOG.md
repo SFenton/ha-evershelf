@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.0] - 2026-08-21
+
+### Added
+- Processing sensor attributes that identify when EverShelf requires the
+  copy-safe score refresh path and name the active recovery strategy.
+
 ## [1.8.0] - 2026-08-20
 
 ### Added

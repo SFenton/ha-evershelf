@@ -99,6 +99,8 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         "processing_score_processed": 0,
         "processing_score_total": 0,
         "processing_score_progress": 0.0,
+        "processing_score_recovery_required": False,
+        "processing_score_recovery_strategy": None,
         "processing_oldest_age_seconds": 0,
         "processing_oldest_job_at": None,
         "processing_observed_at": None,
@@ -297,6 +299,13 @@ def processing_status_data(payload: object) -> dict[str, Any]:
         ),
         "processing_score_progress": _bounded_float(
             incremental.get("progress_percent")
+        ),
+        "processing_score_recovery_required": bool(
+            incremental.get("copied_recovery_required")
+        ),
+        "processing_score_recovery_strategy": _bounded_text(
+            incremental.get("recovery_strategy"),
+            80,
         ),
         "processing_oldest_age_seconds": _bounded_int(
             status.get("oldest_age_seconds")
