@@ -1,5 +1,13 @@
 # Repository instructions
 
+## Budget-aware workflow
+
+Use `.github/agent-budget.json` and `ha-evershelf-budget-workflow` for bounded
+research, implementation and tests. Prefer direct source ranges and existing
+test selectors. Novel service semantics or idempotency require primary
+evidence; tandem is explicit-only. Budget routing never overrides the
+service or release contracts below and never authorizes live HA changes.
+
 ## Release process
 
 - When pushing a version bump or release tag for this HACS integration, also create the matching GitHub Release in `SFenton/ha-evershelf`.
