@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "project": "ha-evershelf",
+  "instructions": [".github/copilot-instructions.md", ".github/skills/ha-evershelf-budget-workflow/SKILL.md"],
+  "riskTerms": ["idempotency", "capability", "todo mirror", "authentication", "token", "registration"],
+  "gates": [
+    "Check handler, schema, registration/unload, coordinator, services.yaml, strings and every translation",
+    "Preserve backend ranking ownership, bounded responses and structured errors",
+    "Run affected recipe API/service tests including capability and idempotency branches",
+    "No live HA changes or release without explicit approval; HACS release requires a matching GitHub Release"
+  ],
+  "evidencePolicy": {
+    "always": ["Keep credentials out of URLs, prompts and logs; research authorizes no live HA changes.", "EverShelf owns catalog/ranking business logic; HA preserves bounded response and service boundaries."],
+    "phases": {
+      "research": ["Inspect the source layer asked about; follow adjacent layers only when they can change the answer. A request builder does not prove backend execution.", "Prefer existing integration helpers and use mocked/copy-based proposals rather than live probes."],
+      "implementation": ["Keep complete handler/schema/registration/unload/coordinator/service/translation surfaces aligned."],
+      "validation": ["Run affected recipe API/service and replay/capability error tests."],
+      "release": ["Explicit release approval; a matching GitHub Release and HACS visibility are required, not a tag alone."]
+    },
+    "content": {
+      "allowPaths": ["custom_components", "tests", "README.md", "CHANGELOG.md", ".github/copilot-instructions.md"],
+      "denyPaths": [],
+      "maxFileBytes": 1000000
+    }
+  },
+  "commands": {
+    "recipe": "python -m pytest tests/test_recipe_api.py tests/test_recipe_services.py",
+    "processing": "python -m pytest tests/test_processing_status.py"
+  }
+}
