@@ -1,6 +1,14 @@
 {
   "version": 1,
   "project": "ha-evershelf",
+  "opportunityPolicy": ".github/agent-opportunities.json",
+  "toolRegistry": ".github/agent-tools.json",
+  "releaseMachine": ".github/release-machine.json",
+  "opportunityEvaluation": ".github/evals/agent-opportunity-cases.json",
+  "workerEvaluation": ".github/evals/agent-worker-cases.json",
+  "capabilityEvaluation": ".github/evals/capability-qualification.json",
+  "sandboxProfiles": ".github/sandbox-profiles.json",
+  "learningPolicy": ".github/agent-learning.json",
   "instructions": [".github/copilot-instructions.md", ".github/skills/ha-evershelf-budget-workflow/SKILL.md"],
   "riskTerms": ["idempotency", "capability", "todo mirror", "authentication", "token", "registration"],
   "gates": [
@@ -9,6 +17,11 @@
     "Run affected recipe API/service tests including capability and idempotency branches",
     "No live HA changes or release without explicit approval; HACS release requires a matching GitHub Release"
   ],
+  "delegation": {
+    "allowedClasses": ["test-generation"],
+    "requireCleanTargets": true,
+    "requireDeterministicValidator": true
+  },
   "evidencePolicy": {
     "always": ["Keep credentials out of URLs, prompts and logs; research authorizes no live HA changes.", "EverShelf owns catalog/ranking business logic; HA preserves bounded response and service boundaries."],
     "phases": {

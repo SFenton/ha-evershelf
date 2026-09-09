@@ -681,7 +681,7 @@ curl http://YOUR_EVERSHELF_IP/api/index.php?action=ha_info
 
 ## Manual installation
 
-1. Download the [latest release](https://github.com/dadaloop82/ha-evershelf/releases/latest)
+1. Download the [latest release](https://github.com/SFenton/ha-evershelf/releases/latest)
 2. Copy `custom_components/evershelf/` to `<your HA config>/custom_components/`
 3. Restart Home Assistant
 4. **Settings → Devices & Services → Add Integration → EverShelf**

@@ -1,0 +1,1048 @@
+{
+  "version": 1,
+  "project": "ha-evershelf",
+  "qualificationStatus": "invalidated-incomplete-evidence",
+  "opportunities": [
+    {
+      "id": "service-wiring",
+      "cases": [
+        {
+          "id": "service-wiring-1",
+          "question": "Can the model wire recipe_query and recipe_hydration end-to-end without reimplementing EverShelf ranking logic in HA or changing the request/response shape?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 743,
+              "end": 1141
+            },
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 618,
+              "end": 678
+            },
+            {
+              "file": "custom_components/evershelf/recipe_api.py",
+              "start": 252,
+              "end": 319
+            },
+            {
+              "file": "tests/test_recipe_api.py",
+              "start": 41,
+              "end": 126
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 1070,
+              "end": 1175
+            }
+          ],
+          "criteria": [
+            "recipe_query returns the exact compact browse/recommendation action and bounded params.",
+            "recipe_hydration uses exactly one of query/search_id and preserves the immediate enqueue-or-poll contract.",
+            "The coordinator delegates to shared builders instead of inlining catalog logic."
+          ],
+          "failureCriteria": [
+            "Ranking/filtering/pagination gets reimplemented in HA instead of passed through.",
+            "The handler mutates request keys, drops fields, or uses the wrong method.",
+            "The service is wired as a generic command instead of a response-capable query service."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_api.py::test_recipe_browse_request_is_compact_and_bounded tests/test_recipe_api.py::test_recipe_recommendation_request_ignores_browse_fields tests/test_recipe_api.py::test_recipe_hydration_enqueue_and_poll tests/test_recipe_services.py::test_coordinator_recipe_methods_use_request_builders` and verify exact action/payload equality.",
+          "discriminator": "A cheaper model can patch the visible handler, but this case requires consistent wiring across the handler, coordinator, request builders, and unit tests."
+        },
+        {
+          "id": "service-wiring-2",
+          "question": "Can the model keep recipe_detail and recipe_grocery_add wired to the right backend envelopes while preserving capability lowering and todo mirroring?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1340,
+              "end": 1500
+            },
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 679,
+              "end": 708
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 700,
+              "end": 820
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2413,
+              "end": 2480
+            },
+            {
+              "file": "README.md",
+              "start": 245,
+              "end": 300
+            }
+          ],
+          "criteria": [
+            "recipe_detail preserves the backend detail envelope and only lowers effective capabilities when required.",
+            "recipe_grocery_add keeps backend outcomes bounded and mirrors only eligible items to the todo list.",
+            "No backend-owned grocery/detail fields are dropped or rewritten by HA."
+          ],
+          "failureCriteria": [
+            "The detail response is rebuilt from scratch instead of copied and annotated.",
+            "grocery_add mirrors the wrong items or converts source amounts into quantities.",
+            "Capability state/reason fields are omitted or applied to supported backend states."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_recipe_detail_returns_backend_envelope tests/test_recipe_services.py::test_recipe_detail_keeps_effective_grocery_capability_when_supported tests/test_recipe_services.py::test_recipe_detail_disables_grocery_without_backend_capability tests/test_recipe_services.py::test_grocery_add_deduplicates_pending_items_and_replays` and compare exact response dictionaries.",
+          "discriminator": "This case spans two service families and the mirror layer; a weaker model often gets one path correct while drifting on the other."
+        },
+        {
+          "id": "service-wiring-3",
+          "question": "Can the model keep the ingredient feedback, atomic decision, and planner services aligned across handler, coordinator, schema, and translations?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1071,
+              "end": 1141
+            },
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 709,
+              "end": 754
+            },
+            {
+              "file": "custom_components/evershelf/recipe_api.py",
+              "start": 105,
+              "end": 249
+            },
+            {
+              "file": "custom_components/evershelf/services.yaml",
+              "start": 307,
+              "end": 566
+            },
+            {
+              "file": "custom_components/evershelf/strings.json",
+              "start": 307,
+              "end": 361
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 816,
+              "end": 1015
+            }
+          ],
+          "criteria": [
+            "The three service families preserve the exact action/origin/verdict/planner payload contract.",
+            "config_entry_id is stripped before backend calls and enforced where multiple instances are possible.",
+            "The service docs and translations match the actual request shapes."
+          ],
+          "failureCriteria": [
+            "A service accepts unsupported fields or fails to strip config_entry_id.",
+            "action_origin defaults or selected/expected IDs drift from the documented contract.",
+            "Services.yaml/strings drift from the handler/coordinator behavior."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_recipe_ingredient_feedback_services_are_capability_gated tests/test_recipe_services.py::test_recipe_decision_and_planner_services_are_capability_gated tests/test_recipe_services.py::test_recipe_service_schemas_are_strict tests/test_recipe_services.py::test_recipe_decision_and_planner_schemas_are_strict` and verify the exact request payloads.",
+          "discriminator": "A cheaper model usually keeps one service family consistent, but this case requires three adjacent write surfaces to stay synchronized."
+        }
+      ]
+    },
+    {
+      "id": "registration",
+      "cases": [
+        {
+          "id": "registration-1",
+          "question": "Do async_setup_entry and async_unload_entry register the recipe services once and remove them symmetrically when the last config entry is gone?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 743,
+              "end": 820
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3280,
+              "end": 3447
+            },
+            {
+              "file": "custom_components/evershelf/services.yaml",
+              "start": 127,
+              "end": 220
+            }
+          ],
+          "criteria": [
+            "All registered recipe services exist after setup and disappear after unload.",
+            "Service registrations are not duplicated on repeated setup.",
+            "The unload path also drops the runtime replay key when the store is clean."
+          ],
+          "failureCriteria": [
+            "A service stays registered after the last entry unloads.",
+            "Setup duplicates a handler or unload forgets one recipe service.",
+            "The runtime key survives even when nothing is dirty."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_setup_registers_and_unload_removes_recipe_services` and assert the registered-service set before/after unload.",
+          "discriminator": "A smaller model can add setup code, but this case checks symmetry across the full lifecycle and the service registry."
+        },
+        {
+          "id": "registration-2",
+          "question": "When multiple EverShelf instances exist, do grocery and response services require config_entry_id instead of silently targeting the wrong coordinator?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1210,
+              "end": 1662
+            },
+            {
+              "file": "custom_components/evershelf/services.yaml",
+              "start": 120,
+              "end": 566
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3182,
+              "end": 3248
+            }
+          ],
+          "criteria": [
+            "Missing config_entry_id is rejected when more than one instance exists.",
+            "Known config_entry_id values route to the intended coordinator only.",
+            "Handlers strip config_entry_id before sending backend payloads."
+          ],
+          "failureCriteria": [
+            "The first coordinator is chosen implicitly for multi-instance calls.",
+            "Unknown entry IDs are accepted or misreported.",
+            "The handler forwards config_entry_id to EverShelf."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_grocery_add_requires_config_entry_with_multiple_instances` and verify the explicit ServiceValidationError path.",
+          "discriminator": "Instance routing is easy to get wrong with a superficial edit; the stronger case forces symmetry between registration, selection, and payload sanitization."
+        },
+        {
+          "id": "registration-3",
+          "question": "Does unload preserve dirty replay state when flush fails and remain safe if a replay load is already in flight?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 96,
+              "end": 327
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1210,
+              "end": 1339
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2733,
+              "end": 2836
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3448,
+              "end": 3517
+            }
+          ],
+          "criteria": [
+            "Dirty replay state is retained if persistence fails.",
+            "Unload does not destroy runtime state while a load is still running.",
+            "A later flush can recover without duplicating or losing records."
+          ],
+          "failureCriteria": [
+            "Dirty state is dropped on a failed flush.",
+            "Unload races with an in-flight load and corrupts the runtime.",
+            "Persistence failures are silently ignored."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_unload_retains_dirty_replay_state_when_flush_fails tests/test_recipe_services.py::test_unload_during_failed_replay_load_is_safe tests/test_recipe_services.py::test_mirror_store_failed_initial_load_never_overwrites_or_records`.",
+          "discriminator": "This case needs concurrency and persistence reasoning, not just registry bookkeeping."
+        }
+      ]
+    },
+    {
+      "id": "capability",
+      "cases": [
+        {
+          "id": "capability-1",
+          "question": "Does recipe_detail distinguish transient probe failure from true unsupported capability using the right structured error envelope?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1340,
+              "end": 1440
+            },
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 273,
+              "end": 343
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 700,
+              "end": 745
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 1016,
+              "end": 1069
+            }
+          ],
+          "criteria": [
+            "Transient probe failures return capability_probe_failed with error_kind unavailable.",
+            "A fresh authoritative unsupported probe returns unsupported_capability with error_kind unsupported.",
+            "The service never falls back to an unstructured backend error for capability absence."
+          ],
+          "failureCriteria": [
+            "Unsupported and unavailable are collapsed into one branch.",
+            "The backend detail envelope is discarded when capability probing fails.",
+            "A transient probe failure is treated as permanent unsupported status."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_recipe_detail_capability_response_and_structured_backend_error tests/test_recipe_services.py::test_recipe_detail_marks_grocery_probe_failure_as_unavailable` and compare the exact error dicts.",
+          "discriminator": "A cheaper model often gets one error branch right; this case requires the unavailable/unsupported matrix to remain exact."
+        },
+        {
+          "id": "capability-2",
+          "question": "When recipe_detail is available, does HA lower only the effective grocery/ingredient/planner flags while preserving all backend-owned fields?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1340,
+              "end": 1440
+            },
+            {
+              "file": "README.md",
+              "start": 245,
+              "end": 263
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 764,
+              "end": 815
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 955,
+              "end": 1015
+            }
+          ],
+          "criteria": [
+            "grocery_add, ingredient_feedback_v2, and planner are only lowered when the matching capability is unsupported or unavailable.",
+            "Backend grocery and ingredient detail fields pass through unchanged.",
+            "The response annotates state/reason without mutating unrelated detail content."
+          ],
+          "failureCriteria": [
+            "Backend detail fields are rewritten or dropped.",
+            "Supported capabilities are unnecessarily lowered.",
+            "The state/reason annotations are missing or attached to the wrong capability."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_recipe_detail_keeps_effective_grocery_capability_when_supported tests/test_recipe_services.py::test_recipe_detail_preserves_additive_backend_fields tests/test_recipe_services.py::test_recipe_detail_lowers_decision_and_planner_capabilities tests/test_recipe_services.py::test_recipe_detail_disables_grocery_without_backend_capability`.",
+          "discriminator": "This is a nested copy-and-annotate problem; weaker challengers often mutate the backend payload while trying to add the HA annotations."
+        },
+        {
+          "id": "capability-3",
+          "question": "Does the capability cache preserve known-good support through transient failures and refresh after the cooldown window?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 235,
+              "end": 343
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2164,
+              "end": 2380
+            }
+          ],
+          "criteria": [
+            "A recent successful probe stays authoritative until the refresh interval expires.",
+            "Transient failures do not erase a known-good capability snapshot.",
+            "Upgrades are detected on the next permitted refresh."
+          ],
+          "failureCriteria": [
+            "Capability support is downgraded immediately on a timeout or probe failure.",
+            "The probe stampedes under concurrent callers.",
+            "Unsupported becomes unavailable too early or never refreshes back to supported."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_capability_probe_initial_failure_recovers_after_cooldown tests/test_recipe_services.py::test_capability_probe_preserves_known_good_on_timeout tests/test_recipe_services.py::test_capability_probe_successfully_proves_unsupported_until_stale tests/test_recipe_services.py::test_periodic_coordinator_update_detects_capability_upgrade tests/test_recipe_services.py::test_capability_probe_has_cooldown_and_no_stampede`.",
+          "discriminator": "This case forces temporal reasoning over cache freshness, cooldowns, and upgrades instead of a one-shot branch choice."
+        }
+      ]
+    },
+    {
+      "id": "authentication",
+      "cases": [
+        {
+          "id": "authentication-1",
+          "question": "Is the token sent only in X-API-Token and never copied into query params or other request data?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/api_auth.py",
+              "start": 7,
+              "end": 18
+            },
+            {
+              "file": "tests/test_recipe_api.py",
+              "start": 41,
+              "end": 50
+            },
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 84,
+              "end": 107
+            },
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 461,
+              "end": 518
+            }
+          ],
+          "criteria": [
+            "Headers include X-API-Token when a token is present.",
+            "Query params are copied without credential material.",
+            "The helper remains usable for both JSON and non-JSON requests."
+          ],
+          "failureCriteria": [
+            "The token leaks into URLs, params, or logs.",
+            "The helper omits X-EverShelf-Request or content-type behavior.",
+            "A refactor treats token placement as incidental instead of mandatory."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_api.py::test_auth_token_never_enters_query_params` and compare the exact header/params dictionaries.",
+          "discriminator": "A cheaper challenger may satisfy one header call but miss the broader no-credential-in-URL contract across helpers and request builders."
+        },
+        {
+          "id": "authentication-2",
+          "question": "Do config-flow probes route token_required, invalid_auth, and cannot_connect into the correct UI errors?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/config_flow.py",
+              "start": 22,
+              "end": 69
+            },
+            {
+              "file": "custom_components/evershelf/config_flow.py",
+              "start": 94,
+              "end": 115
+            },
+            {
+              "file": "custom_components/evershelf/config_flow.py",
+              "start": 209,
+              "end": 243
+            },
+            {
+              "file": "custom_components/evershelf/strings.json",
+              "start": 35,
+              "end": 55
+            },
+            {
+              "file": "README.md",
+              "start": 533,
+              "end": 542
+            },
+            {
+              "file": "README.md",
+              "start": 670,
+              "end": 678
+            }
+          ],
+          "criteria": [
+            "api_token_required with no token becomes token_required.",
+            "401/403 with a token become invalid_auth.",
+            "Network/probe failure falls back to cannot_connect."
+          ],
+          "failureCriteria": [
+            "The flow collapses auth failure and connectivity failure into one error.",
+            "The server-required-token branch is skipped.",
+            "The error strings do not match the configured UI copy."
+          ],
+          "validator": "Mock `_async_test_url` response/status matrices and assert the exact config-flow error keys without touching live HA.",
+          "discriminator": "This requires a precise branch matrix and UI string contract, not just a successful connection probe."
+        },
+        {
+          "id": "authentication-3",
+          "question": "Does the user-facing contract preserve read-only discovery without a token while still requiring a token for write operations?",
+          "sources": [
+            {
+              "file": "README.md",
+              "start": 41,
+              "end": 46
+            },
+            {
+              "file": "README.md",
+              "start": 533,
+              "end": 542
+            },
+            {
+              "file": "custom_components/evershelf/config_flow.py",
+              "start": 209,
+              "end": 243
+            },
+            {
+              "file": "custom_components/evershelf/strings.json",
+              "start": 46,
+              "end": 55
+            }
+          ],
+          "criteria": [
+            "Read-only setup remains valid without a token.",
+            "Token prompts only appear when the server advertises api_token_required or when writes are needed.",
+            "The contract never implies that discovery or sensors require write credentials."
+          ],
+          "failureCriteria": [
+            "The integration incorrectly demands credentials for read-only discovery.",
+            "Write-only gating disappears and the token becomes optional for mutations.",
+            "The docs drift away from the actual auth flow."
+          ],
+          "validator": "Statically compare the README/auth text with the config-flow branches; no live service call is needed.",
+          "discriminator": "A cheaper model can wire the auth prompt but still misstate the read-only contract, which is a separate security and UX boundary."
+        }
+      ]
+    },
+    {
+      "id": "idempotency",
+      "cases": [
+        {
+          "id": "idempotency-1",
+          "question": "Does the grocery mirror remain replay-safe across reloads and restarts when the same config-entry/todo/idempotency key is reused?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 96,
+              "end": 327
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 2074,
+              "end": 2294
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2537,
+              "end": 2609
+            }
+          ],
+          "criteria": [
+            "A replayed backend command reuses the stored mirror outcomes.",
+            "Restarting or reloading HA does not duplicate already mirrored todo items.",
+            "The persisted storage record is bounded and deterministic."
+          ],
+          "failureCriteria": [
+            "The same idempotency key adds a duplicate todo item after reload.",
+            "Replay state is not persisted or is lost on restart.",
+            "The mirror store relies on non-deterministic record ordering."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_grocery_replay_state_survives_reload_and_restart` and inspect the persisted storage payload.",
+          "discriminator": "Replay safety across reloads is stateful and multi-step; smaller models often validate only the first execution path."
+        },
+        {
+          "id": "idempotency-2",
+          "question": "Does the mirror store prune expired records and evict excess records in a deterministic order?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 172,
+              "end": 200
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1732,
+              "end": 2026
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2662,
+              "end": 2771
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2717,
+              "end": 2732
+            }
+          ],
+          "criteria": [
+            "TTL-expired replay entries are removed.",
+            "Corrupt or malformed records are sanitized away.",
+            "When over capacity, the oldest records are evicted deterministically."
+          ],
+          "failureCriteria": [
+            "Expired records survive pruning.",
+            "Corrupt payloads are kept or re-saved unchanged.",
+            "Eviction order depends on hash/map iteration instead of a stable sort."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_mirror_store_prunes_ttl_and_deterministically_evicts tests/test_recipe_services.py::test_mirror_store_sanitizes_corrupt_data`.",
+          "discriminator": "This case depends on stable ordering and cleanup semantics, which weaker challengers typically miss."
+        },
+        {
+          "id": "idempotency-3",
+          "question": "Do concurrent grocery mirrors serialize correctly and replay only previous mirror failures instead of redoing successful items?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 2074,
+              "end": 2294
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2413,
+              "end": 2536
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3068,
+              "end": 3115
+            }
+          ],
+          "criteria": [
+            "The todo mirror lock prevents duplicate concurrent add_item calls.",
+            "Successful outcomes are remembered separately from failed ones.",
+            "A replay key only retries the mirror failures from the first run."
+          ],
+          "failureCriteria": [
+            "Concurrent calls race and add the same item twice.",
+            "Replay logic retries successful todo items unnecessarily.",
+            "The code treats all backend outcomes as equally retryable."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_concurrent_grocery_adds_reread_todo_inside_mirror_lock tests/test_recipe_services.py::test_grocery_replay_retries_only_previous_mirror_failures tests/test_recipe_services.py::test_grocery_add_returns_partial_todo_failures`.",
+          "discriminator": "This is a concurrency-plus-replay case; a cheaper challenger may pass the happy path but fail under concurrent or partial-failure replay."
+        }
+      ]
+    },
+    {
+      "id": "scaffolds",
+      "cases": [
+        {
+          "id": "scaffolds-1",
+          "question": "Would a new service scaffold be rejected if it omitted any cross-surface piece such as registration, unload, services.yaml, strings, or translations?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 743,
+              "end": 820
+            },
+            {
+              "file": "custom_components/evershelf/services.yaml",
+              "start": 127,
+              "end": 220
+            },
+            {
+              "file": "custom_components/evershelf/strings.json",
+              "start": 269,
+              "end": 310
+            },
+            {
+              "file": "custom_components/evershelf/translations/en.json",
+              "start": 269,
+              "end": 310
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3280,
+              "end": 3340
+            }
+          ],
+          "criteria": [
+            "Every service has a handler, schema, registration, unload path, and doc/translation entries.",
+            "The scaffold does not leave hidden gaps between the code and the generated metadata.",
+            "The service list remains coherent across the integration surfaces."
+          ],
+          "failureCriteria": [
+            "A new service is added to code but not to services.yaml or strings.",
+            "Unload symmetry is forgotten.",
+            "Translations are missing or stale for the new scaffolded service."
+          ],
+          "validator": "Diff service keys across `services.yaml`, `strings.json`, and `translations/en.json`, then run `python -m pytest tests/test_recipe_services.py::test_setup_registers_and_unload_removes_recipe_services`.",
+          "discriminator": "A cheaper model can scaffold one file, but this case forces all contract surfaces to stay synchronized."
+        },
+        {
+          "id": "scaffolds-2",
+          "question": "Do scaffolded response services declare SupportsResponse.ONLY and keep strict schema validation instead of falling back to generic commands?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1071,
+              "end": 1141
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1092,
+              "end": 1141
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 559,
+              "end": 692
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3280,
+              "end": 3447
+            }
+          ],
+          "criteria": [
+            "Response services are explicitly declared as response-capable only.",
+            "Schemas reject extra fields and bound input sizes/ranges.",
+            "Service handlers still return structured dict envelopes."
+          ],
+          "failureCriteria": [
+            "A service is registered as a fire-and-forget command by mistake.",
+            "The schema becomes permissive or silently ignores invalid fields.",
+            "The handler returns None where a response envelope is required."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_recipe_service_schemas_are_strict tests/test_recipe_services.py::test_recipe_decision_and_planner_schemas_are_strict tests/test_recipe_services.py::test_setup_registers_and_unload_removes_recipe_services`.",
+          "discriminator": "A superficial scaffold can wire the endpoint, but this case verifies response mode, validation, and service registration together."
+        },
+        {
+          "id": "scaffolds-3",
+          "question": "Do the service docs and translation catalogs stay synchronized with the actual recipe service keys and field descriptions?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/services.yaml",
+              "start": 127,
+              "end": 250
+            },
+            {
+              "file": "custom_components/evershelf/strings.json",
+              "start": 269,
+              "end": 330
+            },
+            {
+              "file": "custom_components/evershelf/translations/en.json",
+              "start": 269,
+              "end": 330
+            },
+            {
+              "file": "README.md",
+              "start": 245,
+              "end": 330
+            }
+          ],
+          "criteria": [
+            "Service names and field labels line up across source docs and translations.",
+            "The scaffold does not leave stale descriptions behind after adding a service.",
+            "The docs still match the actual request schema and response shape."
+          ],
+          "failureCriteria": [
+            "A key appears in code but not in the translation catalogs.",
+            "Field descriptions drift from the actual schema semantics.",
+            "The README or strings point at a service name that no longer exists."
+          ],
+          "validator": "Statically compare the service keys and field keys in `services.yaml`, `strings.json`, and `translations/en.json`; no runtime call is required.",
+          "discriminator": "This catches the common shallow-scaffold failure where code exists but the documented and translated surfaces were not updated."
+        }
+      ]
+    },
+    {
+      "id": "transforms",
+      "cases": [
+        {
+          "id": "transforms-1",
+          "question": "Can a mechanical codemod preserve every recipe_api request builder contract, including exact payload shapes and invalid-input rejection?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/recipe_api.py",
+              "start": 36,
+              "end": 319
+            },
+            {
+              "file": "tests/test_recipe_api.py",
+              "start": 41,
+              "end": 330
+            }
+          ],
+          "criteria": [
+            "The builders still emit the same bounded method/action/payload tuples.",
+            "Invalid values still fail closed with ValueError.",
+            "No extra keys or relaxed bounds appear after the transform."
+          ],
+          "failureCriteria": [
+            "A payload key changes or an unsupported field is accepted.",
+            "Validation becomes permissive for IDs, tokens, or selections.",
+            "Browse/recommendation/hydration shapes diverge from the contract."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_api.py` and compare the exact tuple outputs for all builder tests.",
+          "discriminator": "A cheap transform can rename symbols, but this case checks that the semantic request contract survives the edit intact."
+        },
+        {
+          "id": "transforms-2",
+          "question": "Can a refactor keep the coordinator delegating to the shared builders with the exact HTTP verbs and timeouts?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 618,
+              "end": 754
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 1070,
+              "end": 1175
+            }
+          ],
+          "criteria": [
+            "The coordinator still calls the shared request builders.",
+            "The method selection and timeout values remain unchanged.",
+            "Recipe detail/grocery/decision/planner all keep the same transport boundary."
+          ],
+          "failureCriteria": [
+            "A builder is bypassed and the payload is reassembled inline.",
+            "The HTTP verb or timeout changes accidentally.",
+            "The refactor shifts business logic into the coordinator."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_coordinator_recipe_methods_use_request_builders` and assert the exact call list.",
+          "discriminator": "This is a classic mechanical-edit trap: the surface still compiles, but the transport contract quietly changes."
+        },
+        {
+          "id": "transforms-3",
+          "question": "Can a bulk transform preserve bounded processing-status flattening and scanner schemas without exposing raw or unbounded data?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/processing_status.py",
+              "start": 1,
+              "end": 245
+            },
+            {
+              "file": "tests/test_processing_status.py",
+              "start": 24,
+              "end": 244
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 637,
+              "end": 704
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1182,
+              "end": 1203
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 1856,
+              "end": 2043
+            }
+          ],
+          "criteria": [
+            "Processing diagnostics remain bounded, sanitized, and phase-normalized.",
+            "Scanner schemas still reject malformed payloads and preserve committed IDs/fingerprints.",
+            "No raw error text or unbounded nested structure leaks through the transform."
+          ],
+          "failureCriteria": [
+            "Raw server errors or oversized counters escape normalization.",
+            "Scanner request schemas become lenient or accept nested structures.",
+            "Committed product identity and fingerprint handling drifts."
+          ],
+          "validator": "Run `python -m pytest tests/test_processing_status.py tests/test_recipe_services.py::test_prepare_scanned_product_schema_is_strict_and_bounded tests/test_recipe_services.py::test_suggest_location_schema_accepts_committed_identity`.",
+          "discriminator": "A weaker model can handle the rename, but this case verifies that a mechanical transform did not break safety boundaries."
+        }
+      ]
+    },
+    {
+      "id": "live-ha",
+      "cases": [
+        {
+          "id": "live-ha-1",
+          "question": "Does the mark_used path fail closed when a fresh capability probe rolls back or becomes unavailable?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 367,
+              "end": 455
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 1415,
+              "end": 1450
+            }
+          ],
+          "criteria": [
+            "A rolled-back inventory_decrement capability blocks the write path.",
+            "A fresh probe failure does not allow a live inventory mutation.",
+            "The coordinator refuses the action before inventory I/O runs."
+          ],
+          "failureCriteria": [
+            "Mark-used proceeds after a failed capability probe.",
+            "The code treats stale support as still authoritative.",
+            "Inventory I/O is attempted despite an unavailable probe."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_mark_used_reprobes_and_blocks_rolled_back_backend tests/test_recipe_services.py::test_mark_used_blocks_when_fresh_capability_probe_fails`.",
+          "discriminator": "This mirrors a live backend rollback without actually calling live HA, which forces the model to respect the safety boundary."
+        },
+        {
+          "id": "live-ha-2",
+          "question": "Does the integration detect a capability upgrade on the next allowed refresh instead of requiring a reload?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/coordinator.py",
+              "start": 235,
+              "end": 343
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2164,
+              "end": 2380
+            }
+          ],
+          "criteria": [
+            "A periodic coordinator update refreshes capability knowledge.",
+            "An upgraded backend becomes visible without reloading the integration.",
+            "Cooldowns prevent stampedes while still allowing a later successful probe."
+          ],
+          "failureCriteria": [
+            "Capability knowledge only changes after a reload.",
+            "Transient failures erase known-good support.",
+            "The refresh path is either too eager or never revisits stale status."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_periodic_coordinator_update_detects_capability_upgrade tests/test_recipe_services.py::test_capability_probe_initial_failure_recovers_after_cooldown tests/test_recipe_services.py::test_capability_probe_preserves_known_good_on_timeout`.",
+          "discriminator": "Live-style behavior hinges on time and refresh cadence; a cheaper challenger often misses the delayed upgrade path."
+        },
+        {
+          "id": "live-ha-3",
+          "question": "Do unload and replay persistence behave safely under HA storage failures and restart-like conditions?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 96,
+              "end": 327
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 1210,
+              "end": 1339
+            },
+            {
+              "file": "custom_components/evershelf/__init__.py",
+              "start": 2074,
+              "end": 2294
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2537,
+              "end": 2609
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 2934,
+              "end": 3000
+            },
+            {
+              "file": "tests/test_recipe_services.py",
+              "start": 3448,
+              "end": 3517
+            }
+          ],
+          "criteria": [
+            "Replay state survives ordinary reload/restart flows.",
+            "Storage save/load failures degrade safely without corrupting the persisted state.",
+            "Unload does not drop dirty state or cause duplicate mirrored items later."
+          ],
+          "failureCriteria": [
+            "A failed storage save silently loses replay protection.",
+            "An in-flight load is torn down unsafely during unload.",
+            "The mirror state becomes inconsistent after a restart-like sequence."
+          ],
+          "validator": "Run `python -m pytest tests/test_recipe_services.py::test_grocery_replay_state_survives_reload_and_restart tests/test_recipe_services.py::test_grocery_add_reports_replay_state_save_failure tests/test_recipe_services.py::test_grocery_add_reports_degraded_replay_state_load_failure tests/test_recipe_services.py::test_unload_retains_dirty_replay_state_when_flush_fails tests/test_recipe_services.py::test_unload_during_failed_replay_load_is_safe`.",
+          "discriminator": "This is the closest read-only proxy for live HA runtime behavior: persistence, restart safety, and failure recovery all at once."
+        }
+      ]
+    },
+    {
+      "id": "release",
+      "cases": [
+        {
+          "id": "release-1",
+          "question": "Does the release workflow package the integration zip and upload it only on a published GitHub Release?",
+          "sources": [
+            {
+              "file": ".github/workflows/release.yml",
+              "start": 1,
+              "end": 26
+            },
+            {
+              "file": "README.md",
+              "start": 1,
+              "end": 10
+            }
+          ],
+          "criteria": [
+            "The workflow zips custom_components/evershelf into evershelf.zip.",
+            "The upload step targets the published GitHub Release.",
+            "The package boundary is integration-only, not the whole repository."
+          ],
+          "failureCriteria": [
+            "The workflow uploads the wrong archive or wrong path.",
+            "A tag-only event is treated as a complete release.",
+            "The release artifact includes unintended files outside the integration package."
+          ],
+          "validator": "Statically inspect `.github/workflows/release.yml` and confirm the archive path plus `softprops/action-gh-release` upload step; no runtime action is needed.",
+          "discriminator": "Packaging and release semantics are easy to half-wire; a stronger challenger must keep the archive and release trigger aligned."
+        },
+        {
+          "id": "release-2",
+          "question": "Are manifest version, changelog entry, and release intent kept in sync instead of drifting apart?",
+          "sources": [
+            {
+              "file": "custom_components/evershelf/manifest.json",
+              "start": 1,
+              "end": 11
+            },
+            {
+              "file": "CHANGELOG.md",
+              "start": 1,
+              "end": 30
+            },
+            {
+              "file": "README.md",
+              "start": 1,
+              "end": 10
+            },
+            {
+              "file": "README.md",
+              "start": 684,
+              "end": 686
+            }
+          ],
+          "criteria": [
+            "The manifest version matches the documented release state.",
+            "The changelog reflects the current release line.",
+            "The install instructions still point at the latest release path."
+          ],
+          "failureCriteria": [
+            "A version bump is made without a matching changelog entry.",
+            "The README or manifest points at an older release concept.",
+            "The release metadata is internally inconsistent."
+          ],
+          "validator": "Compare the version string in `manifest.json` with the top changelog release section and the README install references.",
+          "discriminator": "A weaker model may update one metadata file, but release quality depends on repo-wide consistency."
+        },
+        {
+          "id": "release-3",
+          "question": "Does the release policy still require a matching GitHub Release and HACS visibility, rather than treating a pushed tag as sufficient?",
+          "sources": [
+            {
+              "file": ".github/copilot-instructions.md",
+              "start": 16,
+              "end": 18
+            },
+            {
+              "file": ".github/agent-budget.json",
+              "start": 7,
+              "end": 24
+            },
+            {
+              "file": "README.md",
+              "start": 533,
+              "end": 542
+            },
+            {
+              "file": "README.md",
+              "start": 670,
+              "end": 678
+            }
+          ],
+          "criteria": [
+            "The policy explicitly says a tag alone is not a completed release.",
+            "The documentation keeps HACS release visibility as a release gate.",
+            "The install/release guidance does not regress to a tag-only story."
+          ],
+          "failureCriteria": [
+            "A tag is treated as release-complete.",
+            "The HACS visibility requirement disappears.",
+            "The README/install guidance no longer matches the release policy."
+          ],
+          "validator": "Statically verify the release-policy text in the instructions and README; no live release or HACS query is needed.",
+          "discriminator": "This case checks the release contract itself, not just the workflow mechanics, so it catches policy drift that a cheap challenger would miss."
+        }
+      ]
+    }
+  ]
+}
