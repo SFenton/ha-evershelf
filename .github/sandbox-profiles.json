@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "project": "ha-evershelf",
+  "profiles": [
+    {
+      "id": "ha-evershelf-focused-tests",
+      "capability": "ha-evershelf-focused-tests",
+      "candidateFile": "tests/test_processing_status.py",
+      "validator": {
+        "argv": ["python", "-m", "pytest", "tests/test_processing_status.py", "tests/test_recipe_api.py"],
+        "timeoutSeconds": 900
+      },
+      "sandbox": {
+        "provider": "docker",
+        "image": "python:3.12-slim",
+        "expectedImageId": "sha256:804ddf3251a60bbf9c92e73b7566c40428d54d0e79d3428194edf40da6521286",
+        "memoryMb": 512,
+        "pidsLimit": 64,
+        "allowedCollateralPaths": [".pytest_cache"],
+        "includePaths": ["custom_components", "tests"],
+        "containerEnvironment": {
+          "PYTHONDONTWRITEBYTECODE": "1",
+          "PYTHONPATH": "/opt/python-user:/opt/python-system-1"
+        },
+        "dependencyMounts": [
+          {
+            "sourceKind": "python-user-site",
+            "target": "/opt/python-user",
+            "readOnly": true,
+            "evidenceFile": ".github/evals/agent-worker-cases.json",
+            "fingerprintMode": "files",
+            "fingerprintFiles": ["pytest/__init__.py", "_pytest/config/__init__.py", "pluggy/__init__.py", "iniconfig/__init__.py"]
+          },
+          {
+            "sourceKind": "python-system-site",
+            "systemIndex": 1,
+            "target": "/opt/python-system-1",
+            "readOnly": true,
+            "evidenceFile": ".github/evals/agent-worker-cases.json",
+            "fingerprintMode": "files",
+            "fingerprintFiles": ["pygments/__init__.py", "packaging/__init__.py"]
+          }
+        ],
+        "runtimeChecks": [
+          {
+            "argv": ["python", "-c", "import pytest; print(pytest.__version__)"],
+            "timeoutSeconds": 30
+          }
+        ]
+      }
+    }
+  ]
+}

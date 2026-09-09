@@ -7,6 +7,20 @@ research, implementation and tests. Prefer direct source ranges and existing
 test selectors. Novel service semantics or idempotency require primary
 evidence; tandem is explicit-only. Budget routing never overrides the
 service or release contracts below and never authorizes live HA changes.
+Use `.github/agent-opportunities.json` to select one exact model/skill/tooling
+profile for wiring, registration, capability, authentication, idempotency,
+scaffolds, transforms, live work, or release.
+
+The version 3 router runs deterministic evidence and validators first. The
+current overall model may be Sol, HydraFusion, or another model, but it never
+bypasses exact project pins. This project's invalidated case packet disables
+all opportunity model launches until replacement evidence exists. Unqualified
+models gain no semantic, repository-apply, live Home Assistant, or release
+authority.
+
+The installed continuous-improvement observer is governed by
+`.github/agent-learning.json`. It silently no-ops below threshold and grants no
+credential, live HA/HACS, repository-apply or release authority.
 
 ## Release process
 

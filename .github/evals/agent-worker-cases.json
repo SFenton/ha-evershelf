@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "project": "ha-evershelf",
+  "qualificationStatus": "invalidated-incomplete-evidence",
+  "opportunity": "focused-tests",
+  "cases": [
+    {
+      "id": "focused-tests-processing-bounds",
+      "target": "tests/test_processing_status.py",
+      "instruction": "Add focused tests for numeric clamping, unknown-phase degradation, and public error redaction in processing status normalization.",
+      "sources": [
+        { "file": "custom_components/evershelf/processing_status.py", "start": 1, "end": 390 },
+        { "file": "tests/test_processing_status.py", "start": 24, "end": 165 }
+      ],
+      "failureCriteria": [
+        "Negative or oversized values are not exercised.",
+        "Unknown phases or raw diagnostic redaction are not exercised."
+      ],
+      "requiredPatterns": ["processing_status_data", "assert "],
+      "validator": ["python", "-m", "pytest", "tests/test_processing_status.py"]
+    },
+    {
+      "id": "focused-tests-processing-canonical",
+      "target": "tests/test_processing_status.py",
+      "instruction": "Add focused tests for canonical queue-field flattening, bounded age counters, sanitized last errors, and canonical phase retention.",
+      "sources": [
+        { "file": "custom_components/evershelf/processing_status.py", "start": 51, "end": 390 },
+        { "file": "tests/test_processing_status.py", "start": 168, "end": 244 }
+      ],
+      "failureCriteria": [
+        "A canonical queue field or age bound is not asserted.",
+        "Sanitized error or canonical phase behavior is not asserted."
+      ],
+      "requiredPatterns": ["processing_status_data", "processing_canonical_", "assert "],
+      "validator": ["python", "-m", "pytest", "tests/test_processing_status.py"]
+    },
+    {
+      "id": "focused-tests-query-builder",
+      "target": "tests/test_recipe_api.py",
+      "instruction": "Add focused tests for bounded browse/recommendation request parsing, exact source/locale/cursor passthrough, and invalid kind/sort rejection.",
+      "sources": [
+        { "file": "custom_components/evershelf/recipe_api.py", "start": 252, "end": 290 },
+        { "file": "tests/test_recipe_api.py", "start": 51, "end": 126 }
+      ],
+      "failureCriteria": [
+        "Invalid kind/sort rejection is not tested.",
+        "Exact bounded passthrough fields and browse/recommendation differences are not tested."
+      ],
+      "requiredPatterns": ["recipe_query_request", "assert "],
+      "validator": ["python", "-m", "pytest", "tests/test_recipe_api.py"]
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "project": "ha-evershelf",
+  "capabilities": [
+    {
+      "id": "ha-evershelf-focused-tests",
+      "status": "provisional",
+      "trustTier": "provisional-staging",
+      "casePacketStatus": "invalidated-incomplete-evidence",
+      "reviewedApplication": false,
+      "unattendedApplication": false,
+      "currentCases": 0,
+      "minimumCases": 30,
+      "remainingCases": 30,
+      "automaticApplication": false,
+      "scope": "Processing-status and compact request-builder pytest additions represented by the current worker fixtures",
+      "allLegBenchmark": "planned-no-run",
+      "studyBudget": { "missingCases": 30, "modelCalls": 0, "maximumCredits": 0, "maximumTokens": 0, "selected": false, "runStudy": false, "reason": "case packet invalidated and complete mandatory production topology evidence is unavailable" },
+      "sandbox": {
+        "status": "qualified",
+        "provider": "docker",
+        "image": "python:3.12-slim",
+        "profile": ".github/sandbox-profiles.json#ha-evershelf-focused-tests",
+        "profileHash": "dc0e34289a1df065720495426d764c90a1bc27b7c315048ab9c6f192e105c737",
+        "network": "none",
+        "imageId": "sha256:804ddf3251a60bbf9c92e73b7566c40428d54d0e79d3428194edf40da6521286",
+        "dependencyPolicyHash": "465b281624c977b281e7c0c8fff0e083f770db5cdde7ec591cc483a38da7f9d8",
+        "dependencyMode": "read-only Python user/system site mounts with fixed PYTHONPATH",
+        "qualification": "Pytest runtime check and processing-status fixtures pass without host environment or bytecode writes"
+      }
+    }
+  ]
+}

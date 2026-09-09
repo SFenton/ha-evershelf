@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "project": "ha-evershelf",
+  "enabled": true,
+  "retentionDays": 30,
+  "thresholds": {
+    "minimumSuccessfulWorkflows": 3,
+    "minimumDistinctSessions": 2,
+    "minimumStability": 0.8,
+    "maximumCandidatesPerWorkflow": 1,
+    "minimumOperationCount": 2,
+    "maximumSubgraphOperations": 6,
+    "maximumAnalysisEvents": 10000
+  },
+  "priorities": [
+    { "id": "service-lifecycle-inventory", "opportunity": "registration", "class": "deterministic-tool", "description": "Inventory service registration and unload symmetry.", "validators": ["test-registration"], "destination": "tools" },
+    { "id": "translation-synchronization", "opportunity": "service-wiring", "class": "deterministic-tool", "description": "Check services, strings and translation synchronization.", "validators": ["test-recipe-services"], "destination": "tools" },
+    { "id": "config-flow-auth-matrix", "opportunity": "authentication", "class": "qualification-fixture", "description": "Create synthetic config-flow and authentication fixtures without credentials.", "validators": ["test-authentication"], "destination": "fixtures" },
+    { "id": "bounded-response-check", "opportunity": "service-wiring", "class": "deterministic-tool", "description": "Check response bounds and structured error shapes.", "validators": ["test-recipe-services"], "destination": "tools" },
+    { "id": "capability-fixtures", "opportunity": "capability", "class": "qualification-fixture", "description": "Package capability success, transient failure and unsupported fixtures.", "validators": ["test-capability"], "destination": "fixtures" },
+    { "id": "idempotency-replay", "opportunity": "idempotency", "class": "reusable-skill", "description": "Replay bounded idempotency and todo-mirror trajectories.", "validators": ["test-idempotency"], "destination": "skills" }
+  ],
+  "destinations": {
+    "incubation": ".git/copilot-learning",
+    "tools": ".github/learned-tools",
+    "skills": ".github/skills",
+    "fixtures": ".github/evals/learning"
+  },
+  "eligiblePaths": ["custom_components", "tests", "scripts", ".github/evals", ".github/skills"],
+  "excludedPaths": [".env", "config", "secrets"],
+  "riskClasses": ["credential", "authentication-secret", "live-home-assistant", "hacs", "provider", "security", "production", "release", "destructive"],
+  "validators": [
+    { "id": "test-registration", "targets": ["service-lifecycle-inventory"] },
+    { "id": "test-recipe-services", "targets": ["translation-synchronization", "bounded-response-check"] },
+    { "id": "test-authentication", "targets": ["config-flow-auth-matrix"] },
+    { "id": "test-capability", "targets": ["capability-fixtures"] },
+    { "id": "test-idempotency", "targets": ["idempotency-replay"] }
+  ],
+  "knownTools": ["release-preflight", "test-recipe-services", "test-processing-status", "test-query-builder", "test-focused-generation", "test-registration", "test-capability", "test-authentication", "test-idempotency"],
+  "knownSkills": ["ha-evershelf-budget-workflow"],
+  "automaticBuild": true,
+  "automaticPromotion": false,
+  "continuation": { "enabled": true },
+  "promotion": {
+    "allowedSideEffects": ["none", "workspace"],
+    "requireReplay": true,
+    "requireProjectValidation": true,
+    "requireMediumReview": true,
+    "requirePositiveValue": true,
+    "requireScopeCheck": true,
+    "requireRollback": true
+  }
+}
