@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.9.1] - 2026-09-11
+
+### Fixed
+- Inventory edits can preserve the prepared-food state of newly added units
+  without changing the prepared state of every stocked row for the product.
+
 ## [1.9.0] - 2026-08-21
 
 ### Added

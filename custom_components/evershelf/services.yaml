@@ -1002,6 +1002,12 @@ add_scanned_item:
       default: false
       selector:
         boolean:
+    inventory_prepared_food:
+      name: Inventory prepared food
+      description: Optional batch-level prepared state for the newly added inventory units. This preserves a prepared or unprepared batch without changing every stocked row for the product.
+      required: false
+      selector:
+        boolean:
     unit:
       name: Unit
       description: Product unit such as pz, kg, or l.
