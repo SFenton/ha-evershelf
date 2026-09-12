@@ -1637,6 +1637,50 @@ def test_scanned_item_applies_explicit_prepared_food_false() -> None:
     assert len(inventory_calls) == 1
 
 
+def test_scanned_item_preserves_inventory_batch_prepared_food() -> None:
+    hass = FakeHass()
+    coordinator = integration.EverShelfCoordinator(
+        hass,
+        entry_id="entry-1",
+        url="http://evershelf.local",
+        token="secret",
+    )
+    prepared_calls = []
+    inventory_calls = []
+
+    async def fake_set_prepared_food(product_id, prepared):
+        prepared_calls.append((product_id, prepared))
+        return {"success": True}
+
+    async def fake_add_inventory(payload):
+        inventory_calls.append(dict(payload))
+        return {"success": True}
+
+    coordinator.async_set_prepared_food = fake_set_prepared_food
+    coordinator.async_add_inventory = fake_add_inventory
+    result = asyncio.run(
+        coordinator.async_add_scanned_item(
+            {
+                "product_id": 188,
+                "name": "Prepared meal",
+                "inventory_prepared_food": True,
+            }
+        )
+    )
+
+    assert result["success"] is True
+    assert prepared_calls == []
+    assert inventory_calls == [
+        {
+            "idempotency_key": result["idempotency_key"],
+            "product_id": 188,
+            "quantity": 1,
+            "location": "dispensa",
+            "prepared_food": True,
+        }
+    ]
+
+
 def test_scanned_item_rejects_idless_barcode_fallback() -> None:
     hass = FakeHass()
     coordinator = integration.EverShelfCoordinator(
@@ -1916,9 +1960,10 @@ def test_prepare_scanned_product_schema_is_strict_and_bounded() -> None:
         )
 
     add_payload = integration._ADD_SCANNED_ITEM_SCHEMA(
-        {"name": "Soup"}
+        {"name": "Soup", "inventory_prepared_food": True}
     )
     assert "prepared_food" not in add_payload
+    assert add_payload["inventory_prepared_food"] is True
 
 
 def test_suggest_location_schema_accepts_committed_identity() -> None:

@@ -66,6 +66,8 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
                     "processed_recipe_count": 3,
                     "total_recipe_count": 8,
                     "progress_percent": 37.5,
+                    "copied_recovery_required": True,
+                    "recovery_strategy": "copied_score_refresh",
                 },
                 "identity_admission": {
                     "inventory_product_count": 18,
@@ -119,6 +121,11 @@ def test_processing_status_flattens_bounded_entity_data() -> None:
     assert data["processing_score_processed"] == 3
     assert data["processing_score_total"] == 8
     assert data["processing_score_progress"] == 37.5
+    assert data["processing_score_recovery_required"] is True
+    assert (
+        data["processing_score_recovery_strategy"]
+        == "copied_score_refresh"
+    )
     assert data["recipe_scores_stale"] is True
     assert data["recipe_score_inventory_revision"] == 56
     assert data["recipe_score_built_inventory_revision"] == 43

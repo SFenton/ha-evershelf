@@ -1030,6 +1030,10 @@ class EverShelfCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 value = value.strip()
             if value not in (None, ""):
                 inventory_payload[key] = value
+        if "inventory_prepared_food" in item:
+            inventory_payload["prepared_food"] = bool(
+                item["inventory_prepared_food"]
+            )
 
         inventory_response = await self.async_add_inventory(inventory_payload)
         if inventory_response is None:
