@@ -31,7 +31,7 @@ No automatic reader agent or inferred backend execution guarantee.
 1. Read the root service/release contract. Follow the entire service boundary,
    not just the visible handler. Use `test_recipe_api.py` and
    `test_recipe_services.py` as focused behavioral evidence.
-2. Mechanical wiring may use the standard `gpt-5.4` medium/default
+2. Mechanical wiring may use the standard `gpt-5.6-luna` medium/default
    implementation owner. Novel capability, authorization, error, or
    idempotency behavior requires stronger reasoning and explicit state/outcome
    cases, with frontier research limited to receipt-bound Sol evidence only.
