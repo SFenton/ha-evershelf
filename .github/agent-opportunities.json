@@ -42,309 +42,1183 @@
     {
       "id": "focused-tests",
       "label": "Focused test generation",
-      "triggers": ["focused test", "generate pytest", "add service test"],
+      "triggers": [
+        "focused test",
+        "generate pytest",
+        "add service test"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-focused-tests-team",
         "topology": "medium-owner-cheap-worker-medium-review",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
         "workerCandidate": {
           "role": "cheap-worker",
           "enabled": false,
-          "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" },
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
           "evidenceStatus": "invalidated",
           "currentCases": 0,
           "capability": "ha-evershelf-focused-tests",
           "sandboxProfile": "ha-evershelf-focused-tests",
           "delegationClass": "test-generation",
-          "validators": ["test-focused-generation"],
+          "validators": [
+            "test-focused-generation"
+          ],
           "authority": "staging-only"
         },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" },
-        { "id": "implement-bounded", "kind": "cheap-worker", "profileRef": "worker-candidate", "enabled": false },
-        { "id": "validate-focused-tests", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-focused-generation" },
-        { "id": "review-bounded", "kind": "medium-review", "profileRef": "reviewer" }
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        },
+        {
+          "id": "implement-bounded",
+          "kind": "cheap-worker",
+          "profileRef": "worker-candidate",
+          "enabled": false
+        },
+        {
+          "id": "validate-focused-tests",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-focused-generation"
+        },
+        {
+          "id": "review-bounded",
+          "kind": "medium-review",
+          "profileRef": "reviewer"
+        }
       ],
       "rationale": "The worker packet is invalidated and contributes zero valid cases. No model lane launches until a complete replacement packet is checked in."
     },
     {
       "id": "service-wiring",
       "label": "Cross-surface service wiring",
-      "triggers": ["service wiring", "new service", "services.yaml", "service handler"],
+      "triggers": [
+        "service wiring",
+        "new service",
+        "services.yaml",
+        "service handler"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-service-wiring-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required",
+            "consequential-architecture-review"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-service-surfaces", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-recipe-services" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" }
+        {
+          "id": "validate-service-surfaces",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-recipe-services"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required",
+              "consequential-architecture-review"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        }
       ],
       "rationale": "The resolved medium pipeline is recorded, but project-wide case invalidation keeps it disabled."
     },
     {
       "id": "registration",
       "label": "Registration and unload",
-      "triggers": ["register service", "unload service", "async_setup_entry", "async_unload_entry"],
+      "triggers": [
+        "register service",
+        "unload service",
+        "async_setup_entry",
+        "async_unload_entry"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-registration-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-lifecycle", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-registration" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" }
+        {
+          "id": "validate-lifecycle",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-registration"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        }
       ],
       "rationale": "Registration symmetry is a known pattern, but invalidated project evidence disables the otherwise routine medium pipeline."
     },
     {
       "id": "capability",
       "label": "Capability negotiation",
-      "triggers": ["capability", "unsupported status", "feature probe"],
+      "triggers": [
+        "capability",
+        "unsupported status",
+        "feature probe"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-capability-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required",
+            "consequential-architecture-review"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-capability-matrix", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-capability" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" }
+        {
+          "id": "validate-capability-matrix",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-capability"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required",
+              "consequential-architecture-review"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        }
       ],
       "rationale": "Capability work remains disabled until replacement packets prove the complete transient/known-good matrix."
     },
     {
       "id": "authentication",
       "label": "Authentication and credentials",
-      "triggers": ["authentication", "api token", "credential", "x-api-token"],
+      "triggers": [
+        "authentication",
+        "api token",
+        "credential",
+        "x-api-token"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-missing-config-flow-tests",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-authentication-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true },
-        { "id": "critical-review", "kind": "risk-triggered-frontier-review", "profile": { "model": "gpt-5.6-sol", "effort": "max", "context": "long_context" }, "triggerIds": ["haes-credential-exposure-or-auth-migration"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required",
+            "consequential-architecture-review"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "critical-review",
+          "kind": "risk-triggered-frontier-review",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "haes-credential-exposure-or-auth-migration"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-auth-contract", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-authentication" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" },
-        { "id": "critical-review-if-triggered", "kind": "risk-triggered-frontier-review", "profileRef": "conditional:critical-review", "condition": { "triggerIds": ["haes-credential-exposure-or-auth-migration"], "requiresTriggerReceipt": true } }
+        {
+          "id": "validate-auth-contract",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-authentication"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required",
+              "consequential-architecture-review"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        },
+        {
+          "id": "critical-review-if-triggered",
+          "kind": "risk-triggered-frontier-review",
+          "profileRef": "conditional:critical-review",
+          "condition": {
+            "triggerIds": [
+              "haes-credential-exposure-or-auth-migration"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        }
       ],
       "rationale": "Authentication stays disabled pending config-flow replacement cases. Max/long is conditional on a concrete exposure or migration conflict."
     },
     {
       "id": "idempotency",
       "label": "Idempotency and replay",
-      "triggers": ["idempotency", "replay", "duplicate grocery", "ttl outcome"],
+      "triggers": [
+        "idempotency",
+        "replay",
+        "duplicate grocery",
+        "ttl outcome"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-idempotency-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true },
-        { "id": "critical-review", "kind": "risk-triggered-frontier-review", "profile": { "model": "gpt-5.6-sol", "effort": "max", "context": "long_context" }, "triggerIds": ["haes-cross-system-replay-risk"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required",
+            "consequential-architecture-review"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "critical-review",
+          "kind": "risk-triggered-frontier-review",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "haes-cross-system-replay-risk"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-replay", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-idempotency" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" },
-        { "id": "critical-review-if-triggered", "kind": "risk-triggered-frontier-review", "profileRef": "conditional:critical-review", "condition": { "triggerIds": ["haes-cross-system-replay-risk"], "requiresTriggerReceipt": true } }
+        {
+          "id": "validate-replay",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-idempotency"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required",
+              "consequential-architecture-review"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        },
+        {
+          "id": "critical-review-if-triggered",
+          "kind": "risk-triggered-frontier-review",
+          "profileRef": "conditional:critical-review",
+          "condition": {
+            "triggerIds": [
+              "haes-cross-system-replay-risk"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        }
       ],
       "rationale": "Replay semantics need replacement evidence. A critical review is allowed only for an exact cross-system replay conflict receipt."
     },
     {
       "id": "scaffolds",
       "label": "Integration scaffolds",
-      "triggers": ["scaffold service", "new integration module", "config skeleton"],
+      "triggers": [
+        "scaffold service",
+        "new integration module",
+        "config skeleton"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-scaffolds-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-scaffold", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-recipe-services" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" }
+        {
+          "id": "validate-scaffold",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-recipe-services"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        }
       ],
       "rationale": "No scaffold worker is qualified, and the project case packet keeps even medium routing disabled."
     },
     {
       "id": "transforms",
       "label": "Mechanical integration transforms",
-      "triggers": ["mechanical transform", "bulk rename service", "python codemod"],
+      "triggers": [
+        "mechanical transform",
+        "bulk rename service",
+        "python codemod"
+      ],
       "evidence": "repository",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-transforms-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "claude-sonnet-5", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-transform", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-recipe-services" },
-        { "id": "validate-processing", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-processing-status" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" }
+        {
+          "id": "validate-transform",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-recipe-services"
+        },
+        {
+          "id": "validate-processing",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-processing-status"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        }
       ],
       "rationale": "No cheap transform evidence is valid and project-wide case invalidation remains authoritative."
     },
     {
       "id": "live-ha",
       "label": "Live Home Assistant integration work",
-      "triggers": ["live home assistant", "call live service", "reload integration"],
+      "triggers": [
+        "live home assistant",
+        "call live service",
+        "reload integration"
+      ],
       "evidence": "runtime",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "team": {
         "id": "haes-live-ha-team",
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required",
+            "consequential-architecture-review"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-integration", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-recipe-services" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" }
+        {
+          "id": "validate-integration",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-recipe-services"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required",
+              "consequential-architecture-review"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        }
       ],
       "rationale": "Live work is disabled. No model role grants Home Assistant authority; a future real driver also requires explicit operator authorization."
     },
     {
       "id": "release",
       "label": "HA-EverShelf HACS release",
-      "triggers": ["release ha-evershelf", "hacs release", "publish integration"],
+      "triggers": [
+        "release ha-evershelf",
+        "hacs release",
+        "publish integration"
+      ],
       "evidence": "runtime",
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": ["ha-evershelf-budget-workflow"],
+      "skills": [
+        "ha-evershelf-budget-workflow"
+      ],
       "executionMachine": ".github/release-machine.json",
       "executionEnabled": false,
       "team": {
@@ -352,26 +1226,143 @@
         "topology": "medium-owner-only",
         "trustTier": "provisional-staging",
         "maxRevisions": 1,
-        "coordinator": { "role": "medium-coordinator", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "reviewer": { "role": "medium-review", "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" }, "evidenceStatus": "provisional" },
-        "workerCandidate": { "role": "cheap-worker", "enabled": false, "profile": { "model": "gemini-3.7-flash", "effort": "medium", "context": "default" }, "evidenceStatus": "invalidated", "currentCases": 0, "authority": "staging-only" },
-        "repositoryApply": { "authority": "operator", "enabled": false }
+        "coordinator": {
+          "role": "medium-coordinator",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "reviewer": {
+          "role": "medium-review",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "provisional"
+        },
+        "workerCandidate": {
+          "role": "cheap-worker",
+          "enabled": false,
+          "profile": {
+            "model": "gemini-3.7-flash",
+            "effort": "medium",
+            "context": "default"
+          },
+          "evidenceStatus": "invalidated",
+          "currentCases": 0,
+          "authority": "staging-only"
+        },
+        "repositoryApply": {
+          "authority": "operator",
+          "enabled": false
+        }
       },
       "conditionalProfiles": [
-        { "id": "external-research", "kind": "research-frontier", "profile": { "model": "gpt-6-astra", "effort": "high", "context": "default" }, "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true },
-        { "id": "binding-spec", "kind": "spec-planner", "profile": { "model": "gpt-5.6-sol", "effort": "high", "context": "default" }, "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true },
-        { "id": "critical-review", "kind": "risk-triggered-frontier-review", "profile": { "model": "gpt-5.6-sol", "effort": "max", "context": "long_context" }, "triggerIds": ["haes-hacs-release-conflict"], "requiresTriggerReceipt": true }
+        {
+          "id": "external-research",
+          "kind": "research-frontier",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "approved-novel-public-research"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "binding-spec",
+          "kind": "spec-planner",
+          "profile": {
+            "model": "gpt-5.4",
+            "effort": "medium",
+            "context": "default"
+          },
+          "triggerIds": [
+            "binding-novel-spec-required",
+            "consequential-architecture-review"
+          ],
+          "requiresTriggerReceipt": true
+        },
+        {
+          "id": "critical-review",
+          "kind": "risk-triggered-frontier-review",
+          "profile": {
+            "model": "gpt-5.6-sol",
+            "effort": "high",
+            "context": "default"
+          },
+          "triggerIds": [
+            "haes-hacs-release-conflict"
+          ],
+          "requiresTriggerReceipt": true
+        }
       ],
       "phases": [
-        { "id": "validate-release-metadata", "kind": "deterministic", "sideEffect": "none", "tool": "release-preflight" },
-        { "id": "validate-integration", "kind": "deterministic", "sideEffect": "workspace", "tool": "test-recipe-services" },
-        { "id": "research-if-triggered", "kind": "research-frontier", "profileRef": "conditional:external-research", "condition": { "triggerIds": ["approved-novel-public-research"], "requiresTriggerReceipt": true } },
-        { "id": "spec-if-triggered", "kind": "spec-planner", "profileRef": "conditional:binding-spec", "condition": { "triggerIds": ["binding-novel-spec-required", "consequential-architecture-review"], "requiresTriggerReceipt": true } },
-        { "id": "coordinate", "kind": "medium-coordinator", "profileRef": "coordinator" },
-        { "id": "critical-review-if-triggered", "kind": "risk-triggered-frontier-review", "profileRef": "conditional:critical-review", "condition": { "triggerIds": ["haes-hacs-release-conflict"], "requiresTriggerReceipt": true } },
-        { "id": "execute-release-machine", "kind": "deterministic-release", "machine": ".github/release-machine.json", "operatorAuthorizationRequired": true }
+        {
+          "id": "validate-release-metadata",
+          "kind": "deterministic",
+          "sideEffect": "none",
+          "tool": "release-preflight"
+        },
+        {
+          "id": "validate-integration",
+          "kind": "deterministic",
+          "sideEffect": "workspace",
+          "tool": "test-recipe-services"
+        },
+        {
+          "id": "research-if-triggered",
+          "kind": "research-frontier",
+          "profileRef": "conditional:external-research",
+          "condition": {
+            "triggerIds": [
+              "approved-novel-public-research"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "spec-if-triggered",
+          "kind": "spec-planner",
+          "profileRef": "conditional:binding-spec",
+          "condition": {
+            "triggerIds": [
+              "binding-novel-spec-required",
+              "consequential-architecture-review"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "coordinate",
+          "kind": "medium-coordinator",
+          "profileRef": "coordinator"
+        },
+        {
+          "id": "critical-review-if-triggered",
+          "kind": "risk-triggered-frontier-review",
+          "profileRef": "conditional:critical-review",
+          "condition": {
+            "triggerIds": [
+              "haes-hacs-release-conflict"
+            ],
+            "requiresTriggerReceipt": true
+          }
+        },
+        {
+          "id": "execute-release-machine",
+          "kind": "deterministic-release",
+          "machine": ".github/release-machine.json",
+          "operatorAuthorizationRequired": true
+        }
       ],
-      "rationale": "Project-wide invalidation keeps release routing disabled. The deterministic machine remains disabled and max/long is conditional on an exact HACS release conflict receipt."
+      "rationale": "Project-wide invalidation keeps release routing disabled. The deterministic machine remains disabled and receipt-bound Sol high/default is conditional on an exact HACS release conflict receipt."
     }
   ]
 }

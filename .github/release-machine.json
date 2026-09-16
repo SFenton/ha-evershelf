@@ -6,23 +6,127 @@
   "operatorAuthorizationRequired": true,
   "reviewer": {
     "role": "medium-review",
-    "profile": { "model": "gpt-5.6-sol", "effort": "medium", "context": "default" },
+    "profile": {
+      "model": "gpt-5.4",
+      "effort": "medium",
+      "context": "default"
+    },
     "authority": "review-only"
   },
   "exception": {
-    "role": "risk-triggered-frontier-review",
-    "profile": { "model": "gpt-5.6-sol", "effort": "max", "context": "long_context" },
-    "triggerIds": ["haes-hacs-release-conflict"],
+    "role": "research-frontier",
+    "profile": {
+      "model": "gpt-5.6-sol",
+      "effort": "high",
+      "context": "default"
+    },
+    "triggerIds": [
+      "haes-hacs-release-conflict"
+    ],
     "requiresTriggerReceipt": true
   },
   "steps": [
-    { "id": "validate-metadata", "label": "Validate manifest, changelog, archive and HACS policy", "executor": "deterministic", "operation": "command", "tool": "release-preflight", "failure": "rejected", "evidence": ["release preflight receipt"] },
-    { "id": "validate-integration", "label": "Run integration tests", "executor": "deterministic", "operation": "command", "tool": "test-recipe-services", "failure": "rejected", "evidence": ["service, capability, replay and unload results"] },
-    { "id": "create-merge-pr", "label": "Create and merge the exact pull request", "executor": "deterministic", "operation": "git-release", "tool": "git-release-disabled", "failure": "rollback-git", "evidence": ["branch", "commit", "pull request", "merge commit"] },
-    { "id": "publish-github-release", "label": "Create the tag and matching GitHub Release", "executor": "deterministic", "operation": "github-release", "tool": "publish-release-disabled", "failure": "rollback-release", "evidence": ["tag", "GitHub Release", "target SHA"] },
-    { "id": "verify-hacs", "label": "Verify archive hash and bounded HACS visibility", "executor": "deterministic", "operation": "verify", "tool": "verify-hacs-disabled", "failure": "rollback-release", "evidence": ["workflow run", "evershelf.zip", "artifact hash", "HACS version"] },
-    { "id": "rollback-release", "label": "Withdraw or supersede the incomplete release", "executor": "deterministic", "operation": "rollback", "tool": "rollback-release-disabled", "rollbackOnly": true, "rollbackVerificationTool": "verify-hacs-disabled", "failure": "abnormal", "evidence": ["release and HACS state", "counter-release receipt"] },
-    { "id": "rollback-git", "label": "Close the release or create the authorized revert", "executor": "deterministic", "operation": "rollback", "tool": "git-release-disabled", "rollbackOnly": true, "rollbackVerificationTool": "git-release-disabled", "failure": "abnormal", "evidence": ["closed pull request or revert commit"] },
-    { "id": "cleanup-release", "label": "Remove exact temporary release artifacts", "executor": "deterministic", "operation": "cleanup", "tool": "cleanup-release-disabled", "failure": "abnormal", "evidence": ["clean workspace", "retained receipts"] }
+    {
+      "id": "validate-metadata",
+      "label": "Validate manifest, changelog, archive and HACS policy",
+      "executor": "deterministic",
+      "operation": "command",
+      "tool": "release-preflight",
+      "failure": "rejected",
+      "evidence": [
+        "release preflight receipt"
+      ]
+    },
+    {
+      "id": "validate-integration",
+      "label": "Run integration tests",
+      "executor": "deterministic",
+      "operation": "command",
+      "tool": "test-recipe-services",
+      "failure": "rejected",
+      "evidence": [
+        "service, capability, replay and unload results"
+      ]
+    },
+    {
+      "id": "create-merge-pr",
+      "label": "Create and merge the exact pull request",
+      "executor": "deterministic",
+      "operation": "git-release",
+      "tool": "git-release-disabled",
+      "failure": "rollback-git",
+      "evidence": [
+        "branch",
+        "commit",
+        "pull request",
+        "merge commit"
+      ]
+    },
+    {
+      "id": "publish-github-release",
+      "label": "Create the tag and matching GitHub Release",
+      "executor": "deterministic",
+      "operation": "github-release",
+      "tool": "publish-release-disabled",
+      "failure": "rollback-release",
+      "evidence": [
+        "tag",
+        "GitHub Release",
+        "target SHA"
+      ]
+    },
+    {
+      "id": "verify-hacs",
+      "label": "Verify archive hash and bounded HACS visibility",
+      "executor": "deterministic",
+      "operation": "verify",
+      "tool": "verify-hacs-disabled",
+      "failure": "rollback-release",
+      "evidence": [
+        "workflow run",
+        "evershelf.zip",
+        "artifact hash",
+        "HACS version"
+      ]
+    },
+    {
+      "id": "rollback-release",
+      "label": "Withdraw or supersede the incomplete release",
+      "executor": "deterministic",
+      "operation": "rollback",
+      "tool": "rollback-release-disabled",
+      "rollbackOnly": true,
+      "rollbackVerificationTool": "verify-hacs-disabled",
+      "failure": "abnormal",
+      "evidence": [
+        "release and HACS state",
+        "counter-release receipt"
+      ]
+    },
+    {
+      "id": "rollback-git",
+      "label": "Close the release or create the authorized revert",
+      "executor": "deterministic",
+      "operation": "rollback",
+      "tool": "git-release-disabled",
+      "rollbackOnly": true,
+      "rollbackVerificationTool": "git-release-disabled",
+      "failure": "abnormal",
+      "evidence": [
+        "closed pull request or revert commit"
+      ]
+    },
+    {
+      "id": "cleanup-release",
+      "label": "Remove exact temporary release artifacts",
+      "executor": "deterministic",
+      "operation": "cleanup",
+      "tool": "cleanup-release-disabled",
+      "failure": "abnormal",
+      "evidence": [
+        "clean workspace",
+        "retained receipts"
+      ]
+    }
   ]
 }
