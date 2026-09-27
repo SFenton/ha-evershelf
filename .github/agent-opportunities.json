@@ -51,9 +51,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-focused-tests-team",
         "topology": "medium-owner-cheap-worker-medium-review",
@@ -189,9 +187,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-service-wiring-team",
         "topology": "medium-owner-only",
@@ -312,9 +308,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-registration-team",
         "topology": "medium-owner-only",
@@ -432,9 +426,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-capability-team",
         "topology": "medium-owner-only",
@@ -555,9 +547,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-missing-config-flow-tests",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-authentication-team",
         "topology": "medium-owner-only",
@@ -702,9 +692,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-idempotency-team",
         "topology": "medium-owner-only",
@@ -848,9 +836,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-scaffolds-team",
         "topology": "medium-owner-only",
@@ -968,9 +954,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-transforms-team",
         "topology": "medium-owner-only",
@@ -1094,9 +1078,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "team": {
         "id": "haes-live-ha-team",
         "topology": "medium-owner-only",
@@ -1216,9 +1198,7 @@
       "enabled": false,
       "evaluationStatus": "invalidated-incomplete-evidence",
       "casePacketStatus": "invalidated-incomplete-evidence",
-      "skills": [
-        "ha-evershelf-budget-workflow"
-      ],
+      "skills": [],
       "executionMachine": ".github/release-machine.json",
       "executionEnabled": false,
       "team": {
