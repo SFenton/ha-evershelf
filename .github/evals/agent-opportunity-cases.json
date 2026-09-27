@@ -1010,13 +1010,8 @@
           "sources": [
             {
               "file": ".github/copilot-instructions.md",
-              "start": 16,
-              "end": 18
-            },
-            {
-              "file": ".github/agent-budget.json",
-              "start": 7,
-              "end": 24
+              "start": 5,
+              "end": 7
             },
             {
               "file": "README.md",

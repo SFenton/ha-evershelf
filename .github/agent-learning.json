@@ -37,7 +37,7 @@
     { "id": "test-idempotency", "targets": ["idempotency-replay"] }
   ],
   "knownTools": ["release-preflight", "test-recipe-services", "test-processing-status", "test-query-builder", "test-focused-generation", "test-registration", "test-capability", "test-authentication", "test-idempotency"],
-  "knownSkills": ["ha-evershelf-budget-workflow"],
+  "knownSkills": [],
   "automaticBuild": true,
   "automaticPromotion": false,
   "continuation": { "enabled": true },
